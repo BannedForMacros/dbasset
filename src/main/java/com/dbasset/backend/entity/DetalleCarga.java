@@ -14,29 +14,31 @@ public class DetalleCarga {
     @Column(name = "id_detalle")
     private Integer idDetalle;
 
-    // Relación con la Carga (Padre)
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "cod_carga")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Carga carga;
 
-    // Relación con el Activo
+    // Relación por ID numérico (La moderna)
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "id") // Apunta al ID autoincremental de m_activos
+    @JoinColumn(name = "id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Activo activo;
 
-    // Relación con el Usuario (Inventariador) - Puede ser NULL al inicio
+    // ✅ NUEVO: Campo obligatorio por compatibilidad Legacy
+    @Column(name = "cod_activo")
+    private String codActivo;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "cod_usuario")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Usuario usuario;
 
     @Column(name = "inventariado")
-    private String inventariado; // '0' = No, '1' = Sí
+    private String inventariado;
 
     @Column(name = "cod_estado")
-    private Integer codEstado; // Estado físico reportado en el inventario
+    private Integer codEstado;
 
     @Column(name = "fecha_inv")
     private String fechaInv;

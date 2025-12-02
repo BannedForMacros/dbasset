@@ -50,4 +50,7 @@ public class Responsable {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "cod_empresa")
+    private Integer codEmpresa;
 }

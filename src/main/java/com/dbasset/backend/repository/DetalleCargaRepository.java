@@ -11,6 +11,12 @@ public interface DetalleCargaRepository extends JpaRepository<DetalleCarga, Inte
     // Obtener todos los items de una carga específica
     List<DetalleCarga> findByCarga_CodCarga(Integer codCarga);
 
-    // Obtener lo que tiene asignado un usuario específico (Para la APP MÓVIL)
+    // Obtener lo que tiene asignado un usuario específico
     List<DetalleCarga> findByUsuario_CodUsuarioAndCarga_Estado(Integer codUsuario, String estadoCarga);
+
+    // ✅ NUEVO 1: Para obtener las filas en el orden exacto de inserción (Excel)
+    List<DetalleCarga> findByCarga_CodCargaOrderByIdDetalleAsc(Integer codCarga);
+
+    // ✅ NUEVO 2: Para saber cuántos items hay en total (para la barra de progreso)
+    Integer countByCarga_CodCarga(Integer codCarga);
 }
