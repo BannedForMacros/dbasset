@@ -18,21 +18,24 @@ public class CargaController {
     private CargaService cargaService;
 
     @GetMapping
-    public List<Carga> listar() {
-        return cargaService.listarTodas();
+    public List<Carga> listar(@RequestHeader("X-Tenant-ID") Integer codEmpresa) {
+        return cargaService.listarTodas(codEmpresa);
     }
 
     @PostMapping
-    public Carga crear(@RequestBody Map<String, String> body) {
-        // Espera JSON: { "descripcion": "Inventario 2025" }
-        return cargaService.crearCarga(body.get("descripcion"));
+    public Carga crear(@RequestBody Map<String, String> body, @RequestHeader("X-Tenant-ID") Integer codEmpresa) {
+        return cargaService.crearCarga(body.get("descripcion"), codEmpresa);
     }
 
-    // Endpoint para asignar usuario: POST /api/cargas/1/asignar/5 (Carga 1 al Usuario 5)
     @PostMapping("/{codCarga}/asignar/{codUsuario}")
-    public ResponseEntity<?> asignar(@PathVariable Integer codCarga, @PathVariable Integer codUsuario) {
+    public ResponseEntity<?> asignar(
+            @PathVariable Integer codCarga,
+            @PathVariable Integer codUsuario,
+            @RequestHeader("X-Tenant-ID") Integer codEmpresa
+    ) {
         try {
-            cargaService.asignarCargaAUsuario(codCarga, codUsuario);
+            // Pasamos el codEmpresa para validar seguridad
+            cargaService.asignarCargaAUsuario(codCarga, codUsuario, codEmpresa);
             return ResponseEntity.ok(Map.of("mensaje", "Carga asignada correctamente"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());

@@ -17,46 +17,46 @@ public class ActivoController {
     private ActivoService activoService;
 
     @GetMapping
-    public List<Activo> listar() {
-        return activoService.listarTodos();
+    public List<Activo> listar(@RequestHeader("X-Tenant-ID") Integer codEmpresa) {
+        return activoService.listarTodos(codEmpresa);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Activo> obtener(@PathVariable Integer id) {
-        return activoService.obtenerPorId(id)
+    public ResponseEntity<Activo> obtener(@PathVariable Integer id, @RequestHeader("X-Tenant-ID") Integer codEmpresa) {
+        return activoService.obtenerPorId(id, codEmpresa)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/buscar/{codigo}")
-    public ResponseEntity<Activo> obtenerPorCodigo(@PathVariable String codigo) {
-        return activoService.obtenerPorCodigo(codigo)
+    public ResponseEntity<Activo> obtenerPorCodigo(@PathVariable String codigo, @RequestHeader("X-Tenant-ID") Integer codEmpresa) {
+        return activoService.obtenerPorCodigo(codigo, codEmpresa)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public ResponseEntity<?> crear(@RequestBody Activo activo) {
+    public ResponseEntity<?> crear(@RequestBody Activo activo, @RequestHeader("X-Tenant-ID") Integer codEmpresa) {
         try {
-            return ResponseEntity.ok(activoService.guardar(activo));
+            return ResponseEntity.ok(activoService.guardar(activo, codEmpresa));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Activo> actualizar(@PathVariable Integer id, @RequestBody Activo activo) {
+    public ResponseEntity<Activo> actualizar(@PathVariable Integer id, @RequestBody Activo activo, @RequestHeader("X-Tenant-ID") Integer codEmpresa) {
         try {
-            return ResponseEntity.ok(activoService.actualizar(id, activo));
+            return ResponseEntity.ok(activoService.actualizar(id, activo, codEmpresa));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
+    public ResponseEntity<Void> eliminar(@PathVariable Integer id, @RequestHeader("X-Tenant-ID") Integer codEmpresa) {
         try {
-            activoService.eliminar(id);
+            activoService.eliminar(id, codEmpresa);
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();

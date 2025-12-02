@@ -16,14 +16,18 @@ public class Carga {
     @Column(name = "cod_carga")
     private Integer codCarga;
 
+    // ✅ NUEVO: Vinculación con la empresa (RUC)
+    @Column(name = "cod_empresa", nullable = false)
+    private Integer codEmpresa;
+
     @Column(name = "descripcion")
     private String descripcion;
 
     @Column(name = "estado")
-    private String estado; // Ej: 'C' (Creada), 'A' (Asignada), 'T' (Terminada)
+    private String estado; // 'C' (Creada), 'A' (Asignada), 'T' (Terminada)
 
     @Column(name = "fecha")
-    private String fecha; // Formato texto según tu base de datos antigua
+    private String fecha;
 
     // --- AUDITORÍA ---
     @Column(name = "activo")

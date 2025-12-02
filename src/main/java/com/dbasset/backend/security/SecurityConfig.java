@@ -37,16 +37,12 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 1. Permitir el origen de tu Frontend (Next.js)
         configuration.setAllowedOrigins(List.of("http://localhost:3000"));
-
-        // 2. Permitir los métodos HTTP
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 
-        // 3. Permitir las cabeceras (Especialmente Authorization)
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        // ✅ AQUÍ ESTÁ EL CAMBIO: Agregamos "X-Tenant-ID"
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Tenant-ID"));
 
-        // 4. Permitir credenciales
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

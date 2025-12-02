@@ -17,8 +17,12 @@ public class Activo {
     @Column(name = "id")
     private Integer id;
 
-    @Column(name = "cod_activo", unique = true, nullable = false)
-    private String codActivo; // Código de barras o etiqueta
+    // ✅ NUEVO: Vinculación con la empresa (RUC)
+    @Column(name = "cod_empresa", nullable = false)
+    private Integer codEmpresa;
+
+    @Column(name = "cod_activo", nullable = false)
+    private String codActivo; // Código de barras
 
     @Column(name = "cod_interno")
     private String codInterno;
@@ -41,12 +45,10 @@ public class Activo {
     @Column(name = "color")
     private String color;
 
-    // Lo dejamos como String porque el legado es varchar(30)
     @Column(name = "fecha_compra")
     private String fechaCompra;
 
-    // --- RELACIONES (FKs) ---
-
+    // --- RELACIONES ---
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "cod_local")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
@@ -73,7 +75,6 @@ public class Activo {
     private Estado estado;
 
     // --- AUDITORÍA ---
-
     @Column(name = "activo")
     private Boolean activo = true;
 

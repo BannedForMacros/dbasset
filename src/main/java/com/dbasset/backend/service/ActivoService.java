@@ -12,10 +12,9 @@ import java.util.Optional;
 @Service
 public class ActivoService {
 
-    @Autowired
-    private ActivoRepository activoRepository;
+    @Autowired private ActivoRepository activoRepository;
 
-    // Inyectamos todos los repositorios para buscar los datos completos
+    // Repositorios auxiliares para hidratar datos
     @Autowired private LocalRepository localRepository;
     @Autowired private AreaRepository areaRepository;
     @Autowired private OficinaRepository oficinaRepository;
@@ -23,73 +22,69 @@ public class ActivoService {
     @Autowired private EstadoRepository estadoRepository;
 
     @Transactional(readOnly = true)
-    public List<Activo> listarTodos() {
-        return activoRepository.findByActivoTrue();
+    public List<Activo> listarTodos(Integer codEmpresa) {
+        return activoRepository.findByCodEmpresaAndActivoTrue(codEmpresa);
     }
 
     @Transactional(readOnly = true)
-    public Optional<Activo> obtenerPorId(Integer id) {
-        return activoRepository.findById(id);
+    public Optional<Activo> obtenerPorId(Integer id, Integer codEmpresa) {
+        Optional<Activo> activo = activoRepository.findById(id);
+        // Seguridad: Verificar que el activo pertenezca a la empresa del usuario
+        if (activo.isPresent() && !activo.get().getCodEmpresa().equals(codEmpresa)) {
+            return Optional.empty();
+        }
+        return activo;
     }
 
     @Transactional(readOnly = true)
-    public Optional<Activo> obtenerPorCodigo(String codigo) {
-        return activoRepository.findByCodActivoAndActivoTrue(codigo);
+    public Optional<Activo> obtenerPorCodigo(String codigo, Integer codEmpresa) {
+        return activoRepository.findByCodActivoAndCodEmpresaAndActivoTrue(codigo, codEmpresa);
     }
 
     @Transactional
-    public Activo guardar(Activo activo) {
-        // 1. Validar duplicidad de código
-        if (activo.getId() == null && activoRepository.existsByCodActivo(activo.getCodActivo())) {
-            throw new RuntimeException("El código de activo '" + activo.getCodActivo() + "' ya existe.");
+    public Activo guardar(Activo activo, Integer codEmpresa) {
+        // 1. Validar duplicidad dentro de la empresa
+        if (activo.getId() == null && activoRepository.existsByCodActivoAndCodEmpresa(activo.getCodActivo(), codEmpresa)) {
+            throw new RuntimeException("El código de activo '" + activo.getCodActivo() + "' ya existe en esta empresa.");
         }
 
-        // 2. "Hidratar" las relaciones (Buscar los objetos completos)
-        // Esto hace dos cosas: Valida que existan y llena los datos para el JSON de respuesta.
+        // 2. Asignar la empresa
+        activo.setCodEmpresa(codEmpresa);
 
+        // 3. Hidratar relaciones (Validar que existen)
         if (activo.getLocal() != null && activo.getLocal().getCodLocal() != null) {
-            Local local = localRepository.findById(activo.getLocal().getCodLocal())
-                    .orElseThrow(() -> new RuntimeException("Local no encontrado"));
-            activo.setLocal(local);
+            activo.setLocal(localRepository.findById(activo.getLocal().getCodLocal())
+                    .orElseThrow(() -> new RuntimeException("Local no encontrado")));
         }
-
         if (activo.getArea() != null && activo.getArea().getCodArea() != null) {
-            Area area = areaRepository.findById(activo.getArea().getCodArea())
-                    .orElseThrow(() -> new RuntimeException("Área no encontrada"));
-            activo.setArea(area);
+            activo.setArea(areaRepository.findById(activo.getArea().getCodArea())
+                    .orElseThrow(() -> new RuntimeException("Área no encontrada")));
         }
-
         if (activo.getOficina() != null && activo.getOficina().getCodOficina() != null) {
-            Oficina oficina = oficinaRepository.findById(activo.getOficina().getCodOficina())
-                    .orElseThrow(() -> new RuntimeException("Oficina no encontrada"));
-            activo.setOficina(oficina);
+            activo.setOficina(oficinaRepository.findById(activo.getOficina().getCodOficina())
+                    .orElseThrow(() -> new RuntimeException("Oficina no encontrada")));
         }
-
         if (activo.getResponsable() != null && activo.getResponsable().getCodResponsable() != null) {
-            Responsable responsable = responsableRepository.findById(activo.getResponsable().getCodResponsable())
-                    .orElseThrow(() -> new RuntimeException("Responsable no encontrado"));
-            activo.setResponsable(responsable);
+            activo.setResponsable(responsableRepository.findById(activo.getResponsable().getCodResponsable())
+                    .orElseThrow(() -> new RuntimeException("Responsable no encontrado")));
         }
-
         if (activo.getEstado() != null && activo.getEstado().getCodEstado() != null) {
-            Estado estado = estadoRepository.findById(activo.getEstado().getCodEstado())
-                    .orElseThrow(() -> new RuntimeException("Estado no encontrado"));
-            activo.setEstado(estado);
+            activo.setEstado(estadoRepository.findById(activo.getEstado().getCodEstado())
+                    .orElseThrow(() -> new RuntimeException("Estado no encontrado")));
         }
 
-        // 3. Auditoría por defecto
         if (activo.getActivo() == null) activo.setActivo(true);
 
-        // 4. Guardar (Ahora el objeto 'activo' ya tiene todos los nombres cargados)
-        return activoRepository.save(activo);
+        // 4. Guardar y Refrescar
+        Activo guardado = activoRepository.save(activo);
+        return activoRepository.findById(guardado.getId()).orElse(guardado);
     }
 
     @Transactional
-    public Activo actualizar(Integer id, Activo activoDatos) {
-        Activo activoExistente = activoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Activo no encontrado"));
+    public Activo actualizar(Integer id, Activo activoDatos, Integer codEmpresa) {
+        Activo activoExistente = obtenerPorId(id, codEmpresa)
+                .orElseThrow(() -> new RuntimeException("Activo no encontrado o no pertenece a su empresa"));
 
-        // Actualizar campos simples
         activoExistente.setDescripcion(activoDatos.getDescripcion());
         activoExistente.setMarca(activoDatos.getMarca());
         activoExistente.setModelo(activoDatos.getModelo());
@@ -99,38 +94,20 @@ public class ActivoService {
         activoExistente.setCodInterno(activoDatos.getCodInterno());
         activoExistente.setFechaCompra(activoDatos.getFechaCompra());
 
-        // Actualizar relaciones (Buscando los objetos completos igual que en guardar)
-        if (activoDatos.getLocal() != null && activoDatos.getLocal().getCodLocal() != null) {
-            activoExistente.setLocal(localRepository.findById(activoDatos.getLocal().getCodLocal())
-                    .orElseThrow(() -> new RuntimeException("Local no encontrado")));
-        }
+        // Actualizar relaciones si vienen
+        if (activoDatos.getLocal() != null) activoExistente.setLocal(localRepository.findById(activoDatos.getLocal().getCodLocal()).orElse(null));
+        if (activoDatos.getArea() != null) activoExistente.setArea(areaRepository.findById(activoDatos.getArea().getCodArea()).orElse(null));
+        if (activoDatos.getOficina() != null) activoExistente.setOficina(oficinaRepository.findById(activoDatos.getOficina().getCodOficina()).orElse(null));
+        if (activoDatos.getResponsable() != null) activoExistente.setResponsable(responsableRepository.findById(activoDatos.getResponsable().getCodResponsable()).orElse(null));
+        if (activoDatos.getEstado() != null) activoExistente.setEstado(estadoRepository.findById(activoDatos.getEstado().getCodEstado()).orElse(null));
 
-        if (activoDatos.getArea() != null && activoDatos.getArea().getCodArea() != null) {
-            activoExistente.setArea(areaRepository.findById(activoDatos.getArea().getCodArea())
-                    .orElseThrow(() -> new RuntimeException("Área no encontrada")));
-        }
-
-        if (activoDatos.getOficina() != null && activoDatos.getOficina().getCodOficina() != null) {
-            activoExistente.setOficina(oficinaRepository.findById(activoDatos.getOficina().getCodOficina())
-                    .orElseThrow(() -> new RuntimeException("Oficina no encontrada")));
-        }
-
-        if (activoDatos.getResponsable() != null && activoDatos.getResponsable().getCodResponsable() != null) {
-            activoExistente.setResponsable(responsableRepository.findById(activoDatos.getResponsable().getCodResponsable())
-                    .orElseThrow(() -> new RuntimeException("Responsable no encontrado")));
-        }
-
-        if (activoDatos.getEstado() != null && activoDatos.getEstado().getCodEstado() != null) {
-            activoExistente.setEstado(estadoRepository.findById(activoDatos.getEstado().getCodEstado())
-                    .orElseThrow(() -> new RuntimeException("Estado no encontrado")));
-        }
-
-        return activoRepository.save(activoExistente);
+        Activo actualizado = activoRepository.save(activoExistente);
+        return activoRepository.findById(actualizado.getId()).orElse(actualizado);
     }
 
     @Transactional
-    public void eliminar(Integer id) {
-        Activo activo = activoRepository.findById(id)
+    public void eliminar(Integer id, Integer codEmpresa) {
+        Activo activo = obtenerPorId(id, codEmpresa)
                 .orElseThrow(() -> new RuntimeException("Activo no encontrado"));
         activo.setActivo(false);
         activoRepository.save(activo);

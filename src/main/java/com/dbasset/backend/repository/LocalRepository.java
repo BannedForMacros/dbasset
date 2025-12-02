@@ -7,6 +7,10 @@ import java.util.List;
 
 @Repository
 public interface LocalRepository extends JpaRepository<Local, Integer> {
-    // Método mágico para listar solo donde activo = true
-    List<Local> findByActivoTrue();
+
+    // ✅ NUEVO: Filtrar por Empresa Y que esté activo
+    List<Local> findByCodEmpresaAndActivoTrue(Integer codEmpresa);
+
+    // Para el histórico (opcional)
+    List<Local> findByCodEmpresa(Integer codEmpresa);
 }

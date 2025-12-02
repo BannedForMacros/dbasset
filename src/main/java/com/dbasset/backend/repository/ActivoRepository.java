@@ -9,12 +9,12 @@ import java.util.Optional;
 @Repository
 public interface ActivoRepository extends JpaRepository<Activo, Integer> {
 
-    // Buscar por código de barras (muy útil para la App móvil)
-    Optional<Activo> findByCodActivoAndActivoTrue(String codActivo);
+    // Listar activos de UNA empresa específica
+    List<Activo> findByCodEmpresaAndActivoTrue(Integer codEmpresa);
 
-    // Listar todos los activos vigentes
-    List<Activo> findByActivoTrue();
+    // Buscar por código de barras DENTRO de la empresa (Evita mezclar con otra empresa)
+    Optional<Activo> findByCodActivoAndCodEmpresaAndActivoTrue(String codActivo, Integer codEmpresa);
 
-    // Validar duplicados
-    boolean existsByCodActivo(String codActivo);
+    // Validar duplicados DENTRO de la misma empresa
+    boolean existsByCodActivoAndCodEmpresa(String codActivo, Integer codEmpresa);
 }

@@ -16,34 +16,38 @@ public class LocalController {
     @Autowired
     private LocalService localService;
 
-    // GET: Listar solo activos (lo normal)
-    @GetMapping
-    public List<Local> listar() {
-        return localService.listarActivos();
+    // ✅ Recibe codEmpresa como parámetro
+    @GetMapping("/activos")
+    public ResponseEntity<List<Local>> listarActivos(@RequestParam Integer codEmpresa) {
+        List<Local> locales = localService.listarActivos(codEmpresa);
+        return ResponseEntity.ok(locales);
     }
 
-    // GET: Listar todo el histórico (incluye eliminados)
-    @GetMapping("/all")
-    public List<Local> listarTodos() {
-        return localService.listarTodos();
+    @GetMapping
+    public ResponseEntity<List<Local>> listarTodos(@RequestParam Integer codEmpresa) {
+        List<Local> locales = localService.listarTodos(codEmpresa);
+        return ResponseEntity.ok(locales);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Local> obtener(@PathVariable Integer id) {
+    public ResponseEntity<Local> obtenerPorId(@PathVariable Integer id) {
         return localService.obtenerPorId(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    // ✅ Recibe codEmpresa como parámetro
     @PostMapping
-    public Local crear(@RequestBody Local local) {
-        return localService.guardar(local);
+    public ResponseEntity<Local> crear(@RequestBody Local local, @RequestParam Integer codEmpresa) {
+        Local nuevoLocal = localService.guardar(local, codEmpresa);
+        return ResponseEntity.ok(nuevoLocal);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Local> actualizar(@PathVariable Integer id, @RequestBody Local local) {
         try {
-            return ResponseEntity.ok(localService.actualizar(id, local));
+            Local actualizado = localService.actualizar(id, local);
+            return ResponseEntity.ok(actualizado);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
@@ -52,7 +56,7 @@ public class LocalController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         try {
-            localService.eliminar(id); // Hace Soft Delete
+            localService.eliminar(id);
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();

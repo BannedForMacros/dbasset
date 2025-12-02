@@ -12,9 +12,13 @@ import java.time.LocalDateTime;
 public class Local {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // Ahora sí es autoincremental
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "cod_local")
     private Integer codLocal;
+
+    // ✅ NUEVO: Campo obligatorio para saber a qué empresa pertenece
+    @Column(name = "cod_empresa", nullable = false)
+    private Integer codEmpresa;
 
     @Column(name = "local")
     private String nombreLocal;
@@ -25,16 +29,14 @@ public class Local {
     @Column(name = "cod_interno")
     private String codInterno;
 
-    // --- CAMPOS DE AUDITORÍA ---
-
     @Column(name = "activo")
-    private Boolean activo = true; // Por defecto activo
+    private Boolean activo = true;
 
-    @CreationTimestamp // Se llena solo al crear
+    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp // Se llena solo al editar
+    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 }

@@ -1,5 +1,7 @@
 package com.dbasset.backend.controller;
 
+import com.dbasset.backend.repository.EmpresaResumen;
+import com.dbasset.backend.entity.Usuario;
 import com.dbasset.backend.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -8,6 +10,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -24,21 +28,27 @@ public class AuthController {
         String password = request.get("password");
 
         try {
-            // 1. Spring verifica usuario y contraseña contra la BD
+            // 1. Validar credenciales
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, password)
             );
 
-            // 2. Si pasa, buscamos datos para devolver al frontend
-            var user = usuarioRepository.findByNombreUsuario(username).orElseThrow();
+            // 2. Buscar usuario
+            Usuario user = usuarioRepository.findByNombreUsuario(username)
+                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-            // 3. Retornamos éxito (Sin Token, solo datos del usuario)
-            return ResponseEntity.ok(Map.of(
-                    "mensaje", "Login exitoso",
-                    "usuario", user.getNombreUsuario(),
-                    "nombreCompleto", user.getNombreCompleto(),
-                    "tipoUsu", user.getTipoUsu()
-            ));
+            // 3. Buscar empresas
+            List<EmpresaResumen> empresas = usuarioRepository.findEmpresasByUsuario(user.getCodUsuario());
+
+            // 4. Respuesta segura con HashMap (Sin caracteres ocultos)
+            Map<String, Object> response = new HashMap<>();
+            response.put("mensaje", "Login exitoso");
+            response.put("usuario", user.getNombreUsuario());
+            response.put("nombreCompleto", user.getNombreCompleto());
+            response.put("tipoUsu", user.getTipoUsu());
+            response.put("empresas", empresas);
+
+            return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             return ResponseEntity.status(401).body(Map.of("error", "Credenciales incorrectas"));
