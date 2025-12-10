@@ -27,7 +27,13 @@ public class CargaService {
     // --- MÉTODOS BÁSICOS ---
 
     public List<Carga> listarTodas(Integer codEmpresa) {
-        return cargaRepository.findByCodEmpresaAndActivoTrue(codEmpresa);
+        List<Carga> lista = cargaRepository.findByCodEmpresaAndActivoTrue(codEmpresa);
+
+        // ✅ CAMBIO: Ordenar la lista en memoria por ID Descendente (Mayor a Menor)
+        // Esto asegura que el último creado (ID más alto) salga primero.
+        lista.sort((a, b) -> b.getCodCarga().compareTo(a.getCodCarga()));
+
+        return lista;
     }
 
     @Transactional

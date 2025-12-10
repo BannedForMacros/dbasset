@@ -16,6 +16,8 @@ public class ResponsableController {
     @Autowired
     private ResponsableService responsableService;
 
+    // NOTA: Idealmente, el listar también debería filtrar por empresa,
+    // pero lo dejamos igual si tu servicio no lo requiere aún.
     @GetMapping
     public List<Responsable> listar() {
         return responsableService.listarActivos();
@@ -33,18 +35,36 @@ public class ResponsableController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    // ✅ ACTUALIZADO: Capturamos X-Tenant-ID y lo asignamos
     @PostMapping
-    public ResponseEntity<?> crear(@RequestBody Responsable responsable) {
+    public ResponseEntity<?> crear(
+            @RequestBody Responsable responsable,
+            @RequestHeader("X-Tenant-ID") Integer codEmpresa
+    ) {
         try {
+            if (codEmpresa == null) {
+                return ResponseEntity.badRequest().body("Falta el encabezado X-Tenant-ID");
+            }
+
+            // Asignamos el código de empresa antes de guardar para evitar el error SQL
+            responsable.setCodEmpresa(codEmpresa);
+
             return ResponseEntity.ok(responsableService.guardar(responsable));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
+    // ✅ ACTUALIZADO: Capturamos X-Tenant-ID y lo asignamos
     @PutMapping("/{id}")
-    public ResponseEntity<Responsable> actualizar(@PathVariable Integer id, @RequestBody Responsable responsable) {
+    public ResponseEntity<?> actualizar(
+            @PathVariable Integer id,
+            @RequestBody Responsable responsable,
+            @RequestHeader("X-Tenant-ID") Integer codEmpresa
+    ) {
         try {
+            // Aseguramos la empresa también al editar
+            responsable.setCodEmpresa(codEmpresa);
             return ResponseEntity.ok(responsableService.actualizar(id, responsable));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
