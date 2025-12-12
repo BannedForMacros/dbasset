@@ -2,8 +2,11 @@ package com.dbasset.backend.controller;
 
 import com.dbasset.backend.dto.RangoDistribucionRequest; // ✅ Importante: Tu DTO nuevo
 import com.dbasset.backend.entity.Carga;
+import com.dbasset.backend.entity.DetalleCarga;
+import com.dbasset.backend.repository.DetalleCargaRepository;
 import com.dbasset.backend.service.CargaService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +21,9 @@ public class CargaController {
 
     @Autowired
     private CargaService cargaService;
+    @Autowired
+    private DetalleCargaRepository detalleCargaRepository;
+
 
     // --- ENDPOINTS BÁSICOS ---
 
@@ -114,6 +120,15 @@ public class CargaController {
             return ResponseEntity.ok(Map.of("mensaje", "Responsable asignado al rango correctamente"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+    @GetMapping("/{codCarga}/detalle")
+    public ResponseEntity<List<DetalleCarga>> obtenerDetalle(@PathVariable Integer codCarga) {
+        try {
+            List<DetalleCarga> detalles = detalleCargaRepository.findByCarga_CodCargaOrderByIdDetalleAsc(codCarga);
+            return ResponseEntity.ok(detalles);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }

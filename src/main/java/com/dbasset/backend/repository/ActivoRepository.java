@@ -4,6 +4,7 @@ import com.dbasset.backend.entity.Activo;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,4 +49,7 @@ public interface ActivoRepository extends JpaRepository<Activo, Integer> {
             int limite,
             int desplazamiento
     );
+
+    @Query("SELECT dc.activo FROM DetalleCarga dc WHERE dc.carga.codCarga = :codCarga")
+    List<Activo> findByCarga(@Param("codCarga") Integer codCarga);
 }
