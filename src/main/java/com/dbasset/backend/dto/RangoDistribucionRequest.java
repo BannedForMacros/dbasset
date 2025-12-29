@@ -6,5 +6,6 @@ import lombok.Data;
 public class RangoDistribucionRequest {
     private Integer inicio;         // Fila Inicio
     private Integer fin;            // Fila Fin
-    private Integer codResponsable; // ✅ AHORA ES RESPONSABLE
+    private Integer codResponsable; // Opcional
+    private Integer codInventariador;
 }

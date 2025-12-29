@@ -7,7 +7,9 @@ import java.util.List;
 
 @Repository
 public interface ResponsableRepository extends JpaRepository<Responsable, Integer> {
+
     List<Responsable> findByActivoTrue();
-    // Filtro para combos en cascada
-    List<Responsable> findByOficina_CodOficinaAndActivoTrue(Integer codOficina);
+
+    // Buscar responsables que tengan X oficina asignada (dentro de su lista)
+    List<Responsable> findByOficinas_CodOficinaAndActivoTrue(Integer codOficina);
 }

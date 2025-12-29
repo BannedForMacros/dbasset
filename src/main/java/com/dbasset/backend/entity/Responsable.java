@@ -6,6 +6,7 @@ import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
+import java.util.List; // Importante
 
 @Data
 @Entity
@@ -26,18 +27,16 @@ public class Responsable {
     @Column(name = "cod_interno")
     private String codInterno;
 
-    // Campos redundantes por compatibilidad heredada, se llenan solos
-    @Column(name = "cod_local")
-    private Integer codLocal;
-
-    @Column(name = "cod_area")
-    private Integer codArea;
-
-    // Relación principal
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "cod_oficina", nullable = false)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "area"})
-    private Oficina oficina;
+    // --- NUEVA RELACIÓN MUCHOS A MUCHOS ---
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "responsable_oficina",
+            schema = "dbasset",
+            joinColumns = @JoinColumn(name = "cod_responsable"),
+            inverseJoinColumns = @JoinColumn(name = "cod_oficina")
+    )
+    @JsonIgnoreProperties({"responsables", "hibernateLazyInitializer", "handler"}) // Evita ciclos infinitos si Oficina tiene lista de responsables
+    private List<Oficina> oficinas;
 
     // Auditoría
     @Column(name = "activo")

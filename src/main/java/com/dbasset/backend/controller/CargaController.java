@@ -1,6 +1,6 @@
 package com.dbasset.backend.controller;
 
-import com.dbasset.backend.dto.RangoDistribucionRequest; // ✅ Importante: Tu DTO nuevo
+import com.dbasset.backend.dto.RangoDistribucionRequest;
 import com.dbasset.backend.entity.Carga;
 import com.dbasset.backend.entity.DetalleCarga;
 import com.dbasset.backend.repository.DetalleCargaRepository;
@@ -21,9 +21,9 @@ public class CargaController {
 
     @Autowired
     private CargaService cargaService;
+
     @Autowired
     private DetalleCargaRepository detalleCargaRepository;
-
 
     // --- ENDPOINTS BÁSICOS ---
 
@@ -37,7 +37,6 @@ public class CargaController {
         return cargaService.crearCarga(body.get("descripcion"), codEmpresa);
     }
 
-    // Asignación simple (todo a un usuario) - Se mantiene por compatibilidad
     @PostMapping("/{codCarga}/asignar/{codUsuario}")
     public ResponseEntity<?> asignar(
             @PathVariable Integer codCarga,
@@ -59,8 +58,12 @@ public class CargaController {
             @PathVariable Integer codCarga,
             @RequestParam("file") MultipartFile file,
             @RequestParam("mapeo") String jsonMapeo,
-            @RequestParam("configuracion") String jsonConfiguracion, // <--- Configuración visual del Frontend
-            @RequestHeader("X-Tenant-ID") Integer codEmpresa
+            @RequestParam("configuracion") String jsonConfiguracion,
+            @RequestHeader("X-Tenant-ID") Integer codEmpresa,
+            // ✅ NUEVOS PARÁMETROS OPCIONALES (Escenario 2: Ubicación Única)
+            @RequestParam(value = "codLocalUnico", required = false) Integer codLocalUnico,
+            @RequestParam(value = "codAreaUnica", required = false) Integer codAreaUnica,
+            @RequestParam(value = "codOficinaUnica", required = false) Integer codOficinaUnica
     ) {
         try {
             Map<String, Object> resultado = cargaService.importarMasivo(
@@ -68,7 +71,10 @@ public class CargaController {
                     file,
                     jsonMapeo,
                     jsonConfiguracion,
-                    codEmpresa
+                    codEmpresa,
+                    codLocalUnico,      // ✅ Parámetro adicional
+                    codAreaUnica,       // ✅ Parámetro adicional
+                    codOficinaUnica     // ✅ Parámetro adicional
             );
             return ResponseEntity.ok(resultado);
         } catch (Exception e) {
@@ -77,19 +83,17 @@ public class CargaController {
         }
     }
 
-    // --- ✅ NUEVOS ENDPOINTS: DISTRIBUCIÓN POR RANGOS (INVENTARIADORES) ---
+    // --- DISTRIBUCIÓN POR RANGOS ---
 
-    // 1. Saber cuántas filas hay (Para la barra de progreso en el Frontend)
     @GetMapping("/{codCarga}/conteo")
     public ResponseEntity<?> obtenerConteo(@PathVariable Integer codCarga) {
         return ResponseEntity.ok(Map.of("total", cargaService.obtenerTotalItems(codCarga)));
     }
 
-    // 2. Guardar la distribución de rangos (Ej: 1-50 a Juan, 51-100 a María)
     @PostMapping("/{codCarga}/distribuir")
     public ResponseEntity<?> distribuir(
             @PathVariable Integer codCarga,
-            @RequestBody List<RangoDistribucionRequest> distribuciones, // Usamos el DTO
+            @RequestBody List<RangoDistribucionRequest> distribuciones,
             @RequestHeader("X-Tenant-ID") Integer codEmpresa
     ) {
         try {
@@ -101,27 +105,8 @@ public class CargaController {
         }
     }
 
-    // --- ENDPOINTS LEGACY (ASIGNAR RESPONSABLE DE OFICINA) ---
+    // --- ENDPOINTS LEGACY ---
 
-    @PostMapping("/{codCarga}/asignar-responsable-rango")
-    public ResponseEntity<?> asignarResponsableRango(
-            @PathVariable Integer codCarga,
-            @RequestBody Map<String, Integer> body,
-            @RequestHeader("X-Tenant-ID") Integer codEmpresa
-    ) {
-        try {
-            cargaService.asignarRangoResponsable(
-                    codCarga,
-                    body.get("codResponsable"),
-                    body.get("filaInicio"),
-                    body.get("filaFin"),
-                    codEmpresa
-            );
-            return ResponseEntity.ok(Map.of("mensaje", "Responsable asignado al rango correctamente"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
     @GetMapping("/{codCarga}/detalle")
     public ResponseEntity<List<DetalleCarga>> obtenerDetalle(@PathVariable Integer codCarga) {
         try {
