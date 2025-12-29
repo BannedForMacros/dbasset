@@ -20,10 +20,18 @@ public interface ActivoRepository extends JpaRepository<Activo, Integer> {
     // Buscar por código de barras DENTRO de la empresa
     Optional<Activo> findByCodActivoAndCodEmpresaAndActivoTrue(String codActivo, Integer codEmpresa);
 
+    // Buscar por código y empresa (sin filtro activo)
+    Optional<Activo> findByCodActivoAndCodEmpresa(String codActivo, Integer codEmpresa);
+
     // Validar duplicados DENTRO de la misma empresa
     boolean existsByCodActivoAndCodEmpresa(String codActivo, Integer codEmpresa);
 
-    // ✅ NUEVO: Asignación masiva por rangos (Update basado en el orden de carga)
+    // ✅ Query corregida: JOIN con Activo usando cod_activo
+    @Query("SELECT a FROM Activo a JOIN DetalleCarga dc ON a.codActivo = dc.codActivo WHERE dc.carga.codCarga = :codCarga")
+    List<Activo> findByCarga(@Param("codCarga") Integer codCarga);
+
+    // ✅ Asignación masiva por rangos (ya no se usa, pero la dejo comentada por si acaso)
+    /*
     @Modifying
     @Transactional
     @Query(value = """
@@ -33,10 +41,10 @@ public interface ActivoRepository extends JpaRepository<Activo, Integer> {
             cod_area = :codArea,
             cod_local = :codLocal
         WHERE id IN (
-            SELECT d.id 
+            SELECT d.id
             FROM dbasset.detalle_carga d
             WHERE d.cod_carga = :codCarga
-            ORDER BY d.id_detalle ASC 
+            ORDER BY d.id_detalle ASC
             LIMIT :limite OFFSET :desplazamiento
         )
     """, nativeQuery = true)
@@ -49,7 +57,5 @@ public interface ActivoRepository extends JpaRepository<Activo, Integer> {
             int limite,
             int desplazamiento
     );
-
-    @Query("SELECT dc.activo FROM DetalleCarga dc WHERE dc.carga.codCarga = :codCarga")
-    List<Activo> findByCarga(@Param("codCarga") Integer codCarga);
+    */
 }

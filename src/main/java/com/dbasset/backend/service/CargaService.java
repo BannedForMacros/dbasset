@@ -73,9 +73,9 @@ public class CargaService {
             String jsonMapeo,
             String jsonConfiguracion,
             Integer codEmpresa,
-            Integer codLocalUnico,    // ✅ NUEVO: Para Escenario 2
-            Integer codAreaUnica,     // ✅ NUEVO: Para Escenario 2
-            Integer codOficinaUnica   // ✅ NUEVO: Para Escenario 2
+            Integer codLocalUnico,
+            Integer codAreaUnica,
+            Integer codOficinaUnica
     ) throws Exception {
 
         Carga carga = cargaRepository.findByCodCargaAndCodEmpresa(codCarga, codEmpresa)
@@ -99,12 +99,12 @@ public class CargaService {
 
         Map<String, String> mapeoUsuario = mapper.readValue(jsonMapeo, Map.class);
 
-        // ✅ DETECTAR ESCENARIO
+        // Detectar escenario
         boolean tieneColumnasUbicacion = mapeoUsuario.containsKey("cod_local")
                 || mapeoUsuario.containsKey("cod_area")
                 || mapeoUsuario.containsKey("cod_oficina");
 
-        // Validar Escenario 2: Si no tiene columnas, DEBE venir ubicación única
+        // Validar Escenario 2
         if (!tieneColumnasUbicacion && (codLocalUnico == null || codAreaUnica == null || codOficinaUnica == null)) {
             throw new RuntimeException("Debe especificar la ubicación única (Local/Área/Oficina) para esta carga");
         }
@@ -132,7 +132,7 @@ public class CargaService {
             activo.setCodEmpresa(codEmpresa);
             activo.setActivo(true);
 
-            // ✅ MAPEAR CAMPOS DEL EXCEL
+            // Mapear campos del Excel
             for (Map.Entry<String, String> entry : mapeoUsuario.entrySet()) {
                 String campoBD = entry.getKey();
                 String columnaExcel = entry.getValue();
@@ -141,7 +141,7 @@ public class CargaService {
                 asignarValorAlActivo(activo, campoBD, valor, codEmpresa);
             }
 
-            // ✅ ESCENARIO 2: Asignar ubicación única si no viene en Excel
+            // Escenario 2: Asignar ubicación única
             if (!tieneColumnasUbicacion) {
                 activo.setLocal(localRepository.findById(codLocalUnico).orElse(null));
                 activo.setArea(areaRepository.findById(codAreaUnica).orElse(null));
@@ -169,6 +169,11 @@ public class CargaService {
                 detallesNuevos.add(det);
             }
             detalleCargaRepository.saveAll(detallesNuevos);
+
+            // ✅✅✅ AQUÍ ESTÁ LO QUE FALTA - CAMBIAR ESTADO A "A" ✅✅✅
+            carga.setEstado("A");
+            cargaRepository.save(carga);
+            cargaRepository.flush(); // Forzar commit inmediato
         }
 
         Map<String, Object> respuesta = new HashMap<>();
@@ -185,51 +190,62 @@ public class CargaService {
     }
 
     @Transactional
-    public void distribuirCarga(Integer codCarga, List<RangoDistribucionRequest> distribuciones, Integer codEmpresa) {
+    public void distribuirCarga(Integer codCarga, List<RangoDistribucionRequest> rangos, Integer codEmpresa) {
         Carga carga = cargaRepository.findByCodCargaAndCodEmpresa(codCarga, codEmpresa)
                 .orElseThrow(() -> new RuntimeException("Carga no encontrada"));
 
-        List<DetalleCarga> detalles = detalleCargaRepository.findByCarga_CodCargaOrderByIdDetalleAsc(codCarga);
+        List<DetalleCarga> detalles = detalleCargaRepository.findByCarga_CodCargaOrderByIdAsc(codCarga);
 
-        if (detalles.isEmpty()) {
-            throw new RuntimeException("La carga está vacía");
-        }
+        for (RangoDistribucionRequest rango : rangos) {
+            // Validar rango
+            if (rango.getInicio() < 1 || rango.getFin() > detalles.size() || rango.getInicio() > rango.getFin()) {
+                throw new RuntimeException("Rango inválido: " + rango.getInicio() + "-" + rango.getFin());
+            }
 
-        List<Activo> activosParaActualizar = new ArrayList<>();
-
-        for (RangoDistribucionRequest rango : distribuciones) {
-            // ✅ SOLO asignamos Responsable e Inventariador
-            Responsable resp = null;
-            Inventariador inv = null;
-
+            // Obtener entidades (si aplica)
+            Responsable responsable = null;
             if (rango.getCodResponsable() != null) {
-                resp = responsableRepository.findById(rango.getCodResponsable())
+                responsable = responsableRepository.findById(rango.getCodResponsable())
                         .orElseThrow(() -> new RuntimeException("Responsable no encontrado"));
             }
 
+            Inventariador inventariador = null;
             if (rango.getCodInventariador() != null) {
-                inv = inventariadorRepository.findById(rango.getCodInventariador())
+                inventariador = inventariadorRepository.findById(rango.getCodInventariador())
                         .orElseThrow(() -> new RuntimeException("Inventariador no encontrado"));
             }
 
-            int indexInicio = Math.max(0, rango.getInicio() - 1);
-            int indexFin = Math.min(detalles.size() - 1, rango.getFin() - 1);
+            // Asignar al rango
+            for (int i = rango.getInicio() - 1; i < rango.getFin(); i++) {
+                DetalleCarga detalle = detalles.get(i);
 
-            if (indexInicio > indexFin) continue;
+                // ✅ Buscar el activo usando cod_activo
+                if (detalle.getCodActivo() != null) {
+                    Optional<Activo> activoOpt = activoRepository.findByCodActivoAndCodEmpresa(detalle.getCodActivo(), codEmpresa);
 
-            for (int i = indexInicio; i <= indexFin; i++) {
-                Activo activo = detalles.get(i).getActivo();
-                if (activo != null) {
-                    if (resp != null) activo.setResponsable(resp);
-                    if (inv != null) activo.setInventariador(inv);
-                    // ⚠️ NO TOCAMOS local/area/oficina - ya vienen del Excel o de ubicación única
-                    activosParaActualizar.add(activo);
+                    if (activoOpt.isPresent()) {
+                        Activo activo = activoOpt.get();
+
+                        // ✅ Asignar en m_activos
+                        if (responsable != null) {
+                            activo.setResponsable(responsable);
+                        }
+                        if (inventariador != null) {
+                            activo.setInventariador(inventariador);
+                        }
+                        activoRepository.save(activo);
+                    }
                 }
-            }
-        }
 
-        if (!activosParaActualizar.isEmpty()) {
-            activoRepository.saveAll(activosParaActualizar);
+                // ✅ Asignar en detalle_carga
+                if (responsable != null) {
+                    detalle.setResponsable(responsable);
+                }
+                if (inventariador != null) {
+                    detalle.setInventariador(inventariador);
+                }
+                detalleCargaRepository.save(detalle);
+            }
         }
     }
 
@@ -293,5 +309,30 @@ public class CargaService {
 
             default: break;
         }
+    }
+
+    public Carga obtenerPorId(Integer codCarga, Integer codEmpresa) {
+        return cargaRepository.findByCodCargaAndCodEmpresa(codCarga, codEmpresa)
+                .orElseThrow(() -> new RuntimeException("Carga no encontrada"));
+    }
+
+    // ✅ AGREGAR ESTE MÉTODO EN CargaService.java (si no existe)
+
+    public List<DetalleCarga> obtenerDetalleCarga(Integer codCarga, Integer codEmpresa) {
+        // Verificar que la carga pertenece a la empresa
+        cargaRepository.findByCodCargaAndCodEmpresa(codCarga, codEmpresa)
+                .orElseThrow(() -> new RuntimeException("Carga no encontrada"));
+
+        List<DetalleCarga> detalles = detalleCargaRepository.findByCarga_CodCargaOrderByIdAsc(codCarga);
+
+        // ✅ Cargar el objeto Activo manualmente para cada detalle
+        for (DetalleCarga detalle : detalles) {
+            if (detalle.getCodActivo() != null) {
+                activoRepository.findByCodActivoAndCodEmpresa(detalle.getCodActivo(), codEmpresa)
+                        .ifPresent(detalle::setActivo);
+            }
+        }
+
+        return detalles;
     }
 }

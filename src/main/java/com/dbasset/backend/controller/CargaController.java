@@ -32,6 +32,20 @@ public class CargaController {
         return cargaService.listarTodas(codEmpresa);
     }
 
+    // ✅ NUEVO: Obtener carga por ID
+    @GetMapping("/{id}")
+    public ResponseEntity<Carga> obtenerPorId(
+            @PathVariable Integer id,
+            @RequestHeader("X-Tenant-ID") Integer codEmpresa
+    ) {
+        try {
+            Carga carga = cargaService.obtenerPorId(id, codEmpresa);
+            return ResponseEntity.ok(carga);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PostMapping
     public Carga crear(@RequestBody Map<String, String> body, @RequestHeader("X-Tenant-ID") Integer codEmpresa) {
         return cargaService.crearCarga(body.get("descripcion"), codEmpresa);
@@ -60,7 +74,6 @@ public class CargaController {
             @RequestParam("mapeo") String jsonMapeo,
             @RequestParam("configuracion") String jsonConfiguracion,
             @RequestHeader("X-Tenant-ID") Integer codEmpresa,
-            // ✅ NUEVOS PARÁMETROS OPCIONALES (Escenario 2: Ubicación Única)
             @RequestParam(value = "codLocalUnico", required = false) Integer codLocalUnico,
             @RequestParam(value = "codAreaUnica", required = false) Integer codAreaUnica,
             @RequestParam(value = "codOficinaUnica", required = false) Integer codOficinaUnica
@@ -72,9 +85,9 @@ public class CargaController {
                     jsonMapeo,
                     jsonConfiguracion,
                     codEmpresa,
-                    codLocalUnico,      // ✅ Parámetro adicional
-                    codAreaUnica,       // ✅ Parámetro adicional
-                    codOficinaUnica     // ✅ Parámetro adicional
+                    codLocalUnico,
+                    codAreaUnica,
+                    codOficinaUnica
             );
             return ResponseEntity.ok(resultado);
         } catch (Exception e) {
@@ -105,12 +118,15 @@ public class CargaController {
         }
     }
 
-    // --- ENDPOINTS LEGACY ---
+    // --- DETALLE DE CARGA ---
 
     @GetMapping("/{codCarga}/detalle")
-    public ResponseEntity<List<DetalleCarga>> obtenerDetalle(@PathVariable Integer codCarga) {
+    public ResponseEntity<List<DetalleCarga>> obtenerDetalle(
+            @PathVariable Integer codCarga,
+            @RequestHeader("X-Tenant-ID") Integer codEmpresa
+    ) {
         try {
-            List<DetalleCarga> detalles = detalleCargaRepository.findByCarga_CodCargaOrderByIdDetalleAsc(codCarga);
+            List<DetalleCarga> detalles = cargaService.obtenerDetalleCarga(codCarga, codEmpresa);
             return ResponseEntity.ok(detalles);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

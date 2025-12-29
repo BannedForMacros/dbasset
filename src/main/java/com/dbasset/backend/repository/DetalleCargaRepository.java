@@ -17,12 +17,9 @@ public interface DetalleCargaRepository extends JpaRepository<DetalleCarga, Inte
     List<DetalleCarga> findByUsuario_CodUsuarioAndCarga_Estado(Integer codUsuario, String estadoCarga);
 
     // ✅ NUEVO 1: Para obtener las filas en el orden exacto de inserción (Excel)
-    List<DetalleCarga> findByCarga_CodCargaOrderByIdDetalleAsc(Integer codCarga);
+    List<DetalleCarga> findByCarga_CodCargaOrderByIdAsc(Integer codCarga);
 
     // ✅ NUEVO 2: Para saber cuántos items hay en total (para la barra de progreso)
     Integer countByCarga_CodCarga(Integer codCarga);
 
-    // DetalleCargaRepository.java
-    @Query("SELECT dc FROM DetalleCarga dc WHERE dc.activo.id = :activoId")
-    DetalleCarga findByActivoId(@Param("activoId") Integer activoId);
 }
