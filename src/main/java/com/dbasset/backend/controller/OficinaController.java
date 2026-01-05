@@ -17,13 +17,16 @@ public class OficinaController {
     private OficinaService oficinaService;
 
     @GetMapping
-    public List<Oficina> listar() {
-        return oficinaService.listarActivos();
+    public List<Oficina> listar(@RequestHeader("X-Tenant-ID") Integer codEmpresa) {
+        return oficinaService.listarActivos(codEmpresa);
     }
 
     @GetMapping("/por-area/{codArea}")
-    public List<Oficina> listarPorArea(@PathVariable Integer codArea) {
-        return oficinaService.listarPorArea(codArea);
+    public List<Oficina> listarPorArea(
+            @PathVariable Integer codArea,
+            @RequestHeader("X-Tenant-ID") Integer codEmpresa
+    ) {
+        return oficinaService.listarPorArea(codArea, codEmpresa);
     }
 
     @GetMapping("/{id}")
@@ -34,30 +37,40 @@ public class OficinaController {
     }
 
     @PostMapping
-    public ResponseEntity<?> crear(@RequestBody Oficina oficina) {
+    public ResponseEntity<?> crear(
+            @RequestBody Oficina oficina,
+            @RequestHeader("X-Tenant-ID") Integer codEmpresa
+    ) {
         try {
-            return ResponseEntity.ok(oficinaService.guardar(oficina));
+            return ResponseEntity.ok(oficinaService.guardar(oficina, codEmpresa));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Oficina> actualizar(@PathVariable Integer id, @RequestBody Oficina oficina) {
+    public ResponseEntity<?> actualizar(
+            @PathVariable Integer id,
+            @RequestBody Oficina oficina,
+            @RequestHeader("X-Tenant-ID") Integer codEmpresa
+    ) {
         try {
-            return ResponseEntity.ok(oficinaService.actualizar(id, oficina));
+            return ResponseEntity.ok(oficinaService.actualizar(id, oficina, codEmpresa));
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
+    public ResponseEntity<?> eliminar(
+            @PathVariable Integer id,
+            @RequestHeader("X-Tenant-ID") Integer codEmpresa
+    ) {
         try {
-            oficinaService.eliminar(id);
+            oficinaService.eliminar(id, codEmpresa);
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 }

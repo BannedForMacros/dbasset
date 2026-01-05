@@ -21,13 +21,13 @@ public class AreaService {
     private LocalRepository localRepository;
 
     @Transactional(readOnly = true)
-    public List<Area> listarActivos() {
-        return areaRepository.findByActivoTrue();
+    public List<Area> listarActivos(Integer codEmpresa) {
+        return areaRepository.findByCodEmpresaAndActivoTrue(codEmpresa);
     }
 
     @Transactional(readOnly = true)
-    public List<Area> listarPorLocal(Integer codLocal) {
-        return areaRepository.findByLocal_CodLocalAndActivoTrue(codLocal);
+    public List<Area> listarPorLocal(Integer codLocal, Integer codEmpresa) {
+        return areaRepository.findByLocal_CodLocalAndCodEmpresaAndActivoTrue(codLocal, codEmpresa);
     }
 
     @Transactional(readOnly = true)
@@ -36,16 +36,21 @@ public class AreaService {
     }
 
     @Transactional
-    public Area guardar(Area area) {
-        // Validamos que el local exista
+    public Area guardar(Area area, Integer codEmpresa) {
         if (area.getLocal() == null || area.getLocal().getCodLocal() == null) {
             throw new RuntimeException("El área debe pertenecer a un Local");
         }
 
-        // Recuperamos el objeto Local completo para asegurar consistencia
         Local local = localRepository.findById(area.getLocal().getCodLocal())
                 .orElseThrow(() -> new RuntimeException("Local no encontrado"));
+
+        // ✅ Validar que el local pertenece a la misma empresa
+        if (!local.getCodEmpresa().equals(codEmpresa)) {
+            throw new RuntimeException("El local no pertenece a esta empresa");
+        }
+
         area.setLocal(local);
+        area.setCodEmpresa(codEmpresa);
 
         if (area.getActivo() == null) area.setActivo(true);
 
@@ -53,18 +58,27 @@ public class AreaService {
     }
 
     @Transactional
-    public Area actualizar(Integer id, Area areaDatos) {
+    public Area actualizar(Integer id, Area areaDatos, Integer codEmpresa) {
         Area areaExistente = areaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Área no encontrada"));
+
+        // ✅ Validar que pertenece a la empresa
+        if (!areaExistente.getCodEmpresa().equals(codEmpresa)) {
+            throw new RuntimeException("No tiene permisos para modificar esta área");
+        }
 
         areaExistente.setNombreArea(areaDatos.getNombreArea());
         areaExistente.setObservacion(areaDatos.getObservacion());
         areaExistente.setCodInterno(areaDatos.getCodInterno());
 
-        // Si quieren cambiar el área de local
         if (areaDatos.getLocal() != null && areaDatos.getLocal().getCodLocal() != null) {
             Local nuevoLocal = localRepository.findById(areaDatos.getLocal().getCodLocal())
                     .orElseThrow(() -> new RuntimeException("Nuevo Local no encontrado"));
+
+            if (!nuevoLocal.getCodEmpresa().equals(codEmpresa)) {
+                throw new RuntimeException("El local no pertenece a esta empresa");
+            }
+
             areaExistente.setLocal(nuevoLocal);
         }
 
@@ -72,9 +86,14 @@ public class AreaService {
     }
 
     @Transactional
-    public void eliminar(Integer id) {
+    public void eliminar(Integer id, Integer codEmpresa) {
         Area area = areaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Área no encontrada"));
+
+        if (!area.getCodEmpresa().equals(codEmpresa)) {
+            throw new RuntimeException("No tiene permisos para eliminar esta área");
+        }
+
         area.setActivo(false);
         areaRepository.save(area);
     }

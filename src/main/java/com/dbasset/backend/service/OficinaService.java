@@ -21,13 +21,13 @@ public class OficinaService {
     private AreaRepository areaRepository;
 
     @Transactional(readOnly = true)
-    public List<Oficina> listarActivos() {
-        return oficinaRepository.findByActivoTrue();
+    public List<Oficina> listarActivos(Integer codEmpresa) {
+        return oficinaRepository.findByCodEmpresaAndActivoTrue(codEmpresa);
     }
 
     @Transactional(readOnly = true)
-    public List<Oficina> listarPorArea(Integer codArea) {
-        return oficinaRepository.findByArea_CodAreaAndActivoTrue(codArea);
+    public List<Oficina> listarPorArea(Integer codArea, Integer codEmpresa) {
+        return oficinaRepository.findByArea_CodAreaAndCodEmpresaAndActivoTrue(codArea, codEmpresa);
     }
 
     @Transactional(readOnly = true)
@@ -36,19 +36,22 @@ public class OficinaService {
     }
 
     @Transactional
-    public Oficina guardar(Oficina oficina) {
-        // Validar que venga el Área
+    public Oficina guardar(Oficina oficina, Integer codEmpresa) {
         if (oficina.getArea() == null || oficina.getArea().getCodArea() == null) {
             throw new RuntimeException("La oficina debe pertenecer a un Área");
         }
 
-        // Buscar el Área completa para obtener su ID Local (Autocompletado inteligente)
         Area area = areaRepository.findById(oficina.getArea().getCodArea())
                 .orElseThrow(() -> new RuntimeException("Área no encontrada"));
 
+        // ✅ Validar que el área pertenece a la misma empresa
+        if (!area.getCodEmpresa().equals(codEmpresa)) {
+            throw new RuntimeException("El área no pertenece a esta empresa");
+        }
+
         oficina.setArea(area);
-        // Aquí ocurre la magia: Llenamos cod_local automáticamente basándonos en el área
         oficina.setCodLocal(area.getLocal().getCodLocal());
+        oficina.setCodEmpresa(codEmpresa);
 
         if (oficina.getActivo() == null) oficina.setActivo(true);
 
@@ -56,18 +59,26 @@ public class OficinaService {
     }
 
     @Transactional
-    public Oficina actualizar(Integer id, Oficina oficinaDatos) {
+    public Oficina actualizar(Integer id, Oficina oficinaDatos, Integer codEmpresa) {
         Oficina oficinaExistente = oficinaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Oficina no encontrada"));
+
+        if (!oficinaExistente.getCodEmpresa().equals(codEmpresa)) {
+            throw new RuntimeException("No tiene permisos para modificar esta oficina");
+        }
 
         oficinaExistente.setNombreOficina(oficinaDatos.getNombreOficina());
         oficinaExistente.setObservacion(oficinaDatos.getObservacion());
         oficinaExistente.setCodInterno(oficinaDatos.getCodInterno());
 
-        // Si cambian de área, hay que actualizar el cod_local también
         if (oficinaDatos.getArea() != null && oficinaDatos.getArea().getCodArea() != null) {
             Area nuevaArea = areaRepository.findById(oficinaDatos.getArea().getCodArea())
                     .orElseThrow(() -> new RuntimeException("Nueva Área no encontrada"));
+
+            if (!nuevaArea.getCodEmpresa().equals(codEmpresa)) {
+                throw new RuntimeException("El área no pertenece a esta empresa");
+            }
+
             oficinaExistente.setArea(nuevaArea);
             oficinaExistente.setCodLocal(nuevaArea.getLocal().getCodLocal());
         }
@@ -76,9 +87,14 @@ public class OficinaService {
     }
 
     @Transactional
-    public void eliminar(Integer id) {
+    public void eliminar(Integer id, Integer codEmpresa) {
         Oficina oficina = oficinaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Oficina no encontrada"));
+
+        if (!oficina.getCodEmpresa().equals(codEmpresa)) {
+            throw new RuntimeException("No tiene permisos para eliminar esta oficina");
+        }
+
         oficina.setActivo(false);
         oficinaRepository.save(oficina);
     }

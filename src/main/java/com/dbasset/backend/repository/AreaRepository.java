@@ -13,4 +13,7 @@ public interface AreaRepository extends JpaRepository<Area, Integer> {
 
     // Listar áreas de un local específico (que estén activas)
     List<Area> findByLocal_CodLocalAndActivoTrue(Integer codLocal);
+    List<Area> findByCodEmpresaAndActivoTrue(Integer codEmpresa);
+    List<Area> findByLocal_CodLocalAndCodEmpresaAndActivoTrue(Integer codLocal, Integer codEmpresa);
+
 }

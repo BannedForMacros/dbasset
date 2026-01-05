@@ -17,14 +17,16 @@ public class AreaController {
     private AreaService areaService;
 
     @GetMapping
-    public List<Area> listar() {
-        return areaService.listarActivos();
+    public List<Area> listar(@RequestHeader("X-Tenant-ID") Integer codEmpresa) {
+        return areaService.listarActivos(codEmpresa);
     }
 
-    // Endpoint útil para el frontend: Cargar áreas al seleccionar un local
     @GetMapping("/por-local/{codLocal}")
-    public List<Area> listarPorLocal(@PathVariable Integer codLocal) {
-        return areaService.listarPorLocal(codLocal);
+    public List<Area> listarPorLocal(
+            @PathVariable Integer codLocal,
+            @RequestHeader("X-Tenant-ID") Integer codEmpresa
+    ) {
+        return areaService.listarPorLocal(codLocal, codEmpresa);
     }
 
     @GetMapping("/{id}")
@@ -35,30 +37,40 @@ public class AreaController {
     }
 
     @PostMapping
-    public ResponseEntity<?> crear(@RequestBody Area area) {
+    public ResponseEntity<?> crear(
+            @RequestBody Area area,
+            @RequestHeader("X-Tenant-ID") Integer codEmpresa
+    ) {
         try {
-            return ResponseEntity.ok(areaService.guardar(area));
+            return ResponseEntity.ok(areaService.guardar(area, codEmpresa));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Area> actualizar(@PathVariable Integer id, @RequestBody Area area) {
+    public ResponseEntity<?> actualizar(
+            @PathVariable Integer id,
+            @RequestBody Area area,
+            @RequestHeader("X-Tenant-ID") Integer codEmpresa
+    ) {
         try {
-            return ResponseEntity.ok(areaService.actualizar(id, area));
+            return ResponseEntity.ok(areaService.actualizar(id, area, codEmpresa));
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
+    public ResponseEntity<?> eliminar(
+            @PathVariable Integer id,
+            @RequestHeader("X-Tenant-ID") Integer codEmpresa
+    ) {
         try {
-            areaService.eliminar(id);
+            areaService.eliminar(id, codEmpresa);
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 }

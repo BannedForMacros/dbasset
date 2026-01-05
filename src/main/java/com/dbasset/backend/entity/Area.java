@@ -17,6 +17,10 @@ public class Area {
     @Column(name = "cod_area")
     private Integer codArea;
 
+    // ✅ NUEVO
+    @Column(name = "cod_empresa", nullable = false)
+    private Integer codEmpresa;
+
     @Column(name = "area")
     private String nombreArea;
 
@@ -26,14 +30,11 @@ public class Area {
     @Column(name = "cod_interno")
     private String codInterno;
 
-    // --- RELACIÓN CON LOCAL (Muchos a Uno) ---
-    // Un área pertenece a un Local.
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "cod_local", nullable = false)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // Evita errores de recursión
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Local local;
 
-    // --- AUDITORÍA ---
     @Column(name = "activo")
     private Boolean activo = true;
 

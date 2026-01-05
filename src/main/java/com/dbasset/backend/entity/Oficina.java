@@ -17,6 +17,10 @@ public class Oficina {
     @Column(name = "cod_oficina")
     private Integer codOficina;
 
+    // ✅ NUEVO
+    @Column(name = "cod_empresa", nullable = false)
+    private Integer codEmpresa;
+
     @Column(name = "oficina")
     private String nombreOficina;
 
@@ -26,18 +30,14 @@ public class Oficina {
     @Column(name = "cod_interno")
     private String codInterno;
 
-    // Aunque la relación lógica es con Área, la tabla física pide cod_local.
-    // Lo mapeamos como columna simple para llenarlo automáticamente en el Service.
     @Column(name = "cod_local")
     private Integer codLocal;
 
-    // --- RELACIÓN CON AREA (Muchos a Uno) ---
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "cod_area", nullable = false)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "local"}) // Evitamos ciclos infinitos
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "local"})
     private Area area;
 
-    // --- AUDITORÍA ---
     @Column(name = "activo")
     private Boolean activo = true;
 

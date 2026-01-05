@@ -12,4 +12,7 @@ public interface OficinaRepository extends JpaRepository<Oficina, Integer> {
 
     // Para cargar el combo de oficinas cuando seleccionan un área
     List<Oficina> findByArea_CodAreaAndActivoTrue(Integer codArea);
+    List<Oficina> findByCodEmpresaAndActivoTrue(Integer codEmpresa);
+    List<Oficina> findByArea_CodAreaAndCodEmpresaAndActivoTrue(Integer codArea, Integer codEmpresa);
+
 }
