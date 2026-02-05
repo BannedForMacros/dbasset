@@ -20,11 +20,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable) // Desactivar CSRF
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // <--- ¡ESTO ES LO NUEVO! (Habilitar CORS)
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/ping").permitAll()
+                        // 1. PUBLICO: Swagger y Documentación
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // 2. PUBLICO: Tus rutas de Auth y Ping
+                        .requestMatchers("/api/auth/**", "/ping").permitAll()
+                        // 3. PRIVADO: Todo lo demás
                         .anyRequest().authenticated()
                 )
                 .httpBasic(Customizer.withDefaults());
@@ -32,7 +35,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // Definición de las reglas de CORS (Quién puede entrar)
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -40,9 +42,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of("http://localhost:3000"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 
-        // ✅ AQUÍ ESTÁ EL CAMBIO: Agregamos "X-Tenant-ID"
+        // Mantenemos tu Header vital para el proyecto
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Tenant-ID"));
-
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
