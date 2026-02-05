@@ -27,10 +27,12 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // 2. PUBLICO: Tus rutas de Auth y Ping
                         .requestMatchers("/api/auth/**", "/ping").permitAll()
-                        // 3. PRIVADO: Todo lo demás
-                        .anyRequest().authenticated()
+                        // 3. CAMBIO TEMPORAL: Permitir todo para que no te pida login
+                        .anyRequest().permitAll()
                 )
-                .httpBasic(Customizer.withDefaults());
+                // 4. ELIMINA O COMENTA ESTO PARA QUITAR EL POP-UP
+                // .httpBasic(Customizer.withDefaults());
+                .formLogin(AbstractHttpConfigurer::disable); // Asegúrate de que esto esté deshabilitado
 
         return http.build();
     }
