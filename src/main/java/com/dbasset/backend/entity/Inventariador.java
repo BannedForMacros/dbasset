@@ -18,7 +18,7 @@ public class Inventariador {
     private Integer codInventariador;
 
     @Column(name = "nombre_inventariador", nullable = false)
-    private String nombreInventariador;
+    private String nombre; // Lo simplificamos a 'nombre' para que coincida con tu AuthController
 
     @Column(name = "dni")
     private String dni;
@@ -31,6 +31,14 @@ public class Inventariador {
 
     @Column(name = "cod_interno")
     private String codInterno;
+
+    // ✅ NUEVO: El nombre de usuario para el login (Ej: 'cesar_inv')
+    @Column(name = "usuario", unique = true)
+    private String usuario;
+
+    // ✅ YA AÑADIDO: La contraseña
+    @Column(name = "clave")
+    private String clave;
 
     // --- SEGURIDAD MULTI-TENANT ---
     @Column(name = "cod_empresa", nullable = false)

@@ -2,10 +2,13 @@ package com.dbasset.backend.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -17,22 +20,30 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    // 1. BEAN PARA EL AUTH CONTROLLER: Esto permite que el login funcione
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+        return authConfig.getAuthenticationManager();
+    }
+
+    // 2. BEAN PARA CONTRASEÑAS: Como usas '123456', usamos NoOp (sin encriptar)
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return NoOpPasswordEncoder.getInstance();
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        // 1. PUBLICO: Swagger y Documentación
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        // 2. PUBLICO: Tus rutas de Auth y Ping
                         .requestMatchers("/api/auth/**", "/ping").permitAll()
-                        // 3. CAMBIO TEMPORAL: Permitir todo para que no te pida login
+                        // Mantenemos permitAll para tus pruebas, pero ahora el login ya procesará roles
                         .anyRequest().permitAll()
                 )
-                // 4. ELIMINA O COMENTA ESTO PARA QUITAR EL POP-UP
-                // .httpBasic(Customizer.withDefaults());
-                .formLogin(AbstractHttpConfigurer::disable); // Asegúrate de que esto esté deshabilitado
+                .formLogin(AbstractHttpConfigurer::disable);
 
         return http.build();
     }
@@ -40,11 +51,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
-        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
+        // Permite el origen de tu frontend (ajusta si es necesario)
+        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-
-        // Mantenemos tu Header vital para el proyecto
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Tenant-ID"));
         configuration.setAllowCredentials(true);
 

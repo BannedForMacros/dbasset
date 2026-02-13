@@ -32,4 +32,10 @@ public class DetalleCargaService {
                 .filter(d -> d.getUsuario() != null && d.getUsuario().getCodUsuario().equals(codUsuario))
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public List<DetalleCarga> listarPorInventariador(Integer codInventariador) {
+        // Buscamos en el repositorio por la relación inventariador
+        return detalleCargaRepository.findByInventariador_CodInventariador(codInventariador);
+    }
 }

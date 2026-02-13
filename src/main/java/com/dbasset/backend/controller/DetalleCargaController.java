@@ -26,4 +26,9 @@ public class DetalleCargaController {
     public List<DetalleCarga> listarPorUsuario(@PathVariable Integer codUsuario) {
         return detalleCargaService.listarPorUsuario(codUsuario);
     }
+    // ✅ ACTUALIZADO: Sincronización App Móvil por Inventariador
+    @GetMapping("/por-inventariador/{codInventariador}")
+    public List<DetalleCarga> listarPorInventariador(@PathVariable Integer codInventariador) {
+        return detalleCargaService.listarPorInventariador(codInventariador);
+    }
 }

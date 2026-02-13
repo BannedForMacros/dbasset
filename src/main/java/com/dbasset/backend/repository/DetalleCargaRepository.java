@@ -22,4 +22,5 @@ public interface DetalleCargaRepository extends JpaRepository<DetalleCarga, Inte
     // ✅ NUEVO 2: Para saber cuántos items hay en total (para la barra de progreso)
     Integer countByCarga_CodCarga(Integer codCarga);
 
+    List<DetalleCarga> findByInventariador_CodInventariador(Integer codInventariador);
 }

@@ -14,4 +14,6 @@ public interface InventariadorRepository extends JpaRepository<Inventariador, In
     Optional<Inventariador> findByCodInventariadorAndCodEmpresa(Integer codInventariador, Integer codEmpresa);
 
     boolean existsByDniAndCodEmpresa(String dni, Integer codEmpresa);
+
+    Optional<Inventariador> findByUsuario(String usuario);
 }
