@@ -37,7 +37,7 @@ public class InventariadorUbicacionService {
                 .collect(Collectors.toList());
     }
 
-    // 2. Obtener Áreas por Local (CodLocal, CodArea, Area)
+    // 2. Obtener Áreas por Local
     @Transactional(readOnly = true)
     public List<AreaDTO> listarAreas(Integer codInv, Integer codLocal) {
         return detalleCargaRepository.findByInventariador_CodInventariador(codInv).stream()
@@ -53,16 +53,17 @@ public class InventariadorUbicacionService {
                 .collect(Collectors.toList());
     }
 
-    // 3. Obtener Oficinas por Área (CodLocal, CodArea, CodOficina, Oficina)
+    // --- MÉTODOS OPTIMIZADOS (SOLO PIDEN codInv) ---
+
+    // 3. Obtener TODAS las Oficinas del Inventariador
     @Transactional(readOnly = true)
-    public List<OficinaDTO> listarOficinas(Integer codInv, Integer codArea) {
+    public List<OficinaDTO> listarTodasLasOficinas(Integer codInv) {
         return detalleCargaRepository.findByInventariador_CodInventariador(codInv).stream()
                 .map(this::vincularActivoReal)
-                .filter(a -> a != null && a.getArea() != null && a.getOficina() != null)
-                .filter(a -> a.getArea().getCodArea().equals(codArea))
+                .filter(a -> a != null && a.getOficina() != null)
                 .map(a -> new OficinaDTO(
-                        a.getLocal().getCodLocal(),
-                        codArea,
+                        a.getLocal() != null ? a.getLocal().getCodLocal() : null,
+                        a.getArea() != null ? a.getArea().getCodArea() : null,
                         a.getOficina().getCodOficina(),
                         a.getOficina().getNombreOficina()
                 ))
@@ -70,16 +71,16 @@ public class InventariadorUbicacionService {
                 .collect(Collectors.toList());
     }
 
-    // 4. Obtener Responsables por Oficina (CodLocal, CodArea, CodOficina, CodResponsable, Responsable)
+    // 4. Obtener TODOS los Responsables del Inventariador
     @Transactional(readOnly = true)
-    public List<ResponsableDTO> listarResponsables(Integer codInv, Integer codOfi) {
-        return detalleCargaRepository.buscarPorInventariadorYOficina(codInv, codOfi).stream()
+    public List<ResponsableDTO> listarTodosLosResponsables(Integer codInv) {
+        return detalleCargaRepository.findByInventariador_CodInventariador(codInv).stream()
                 .map(this::vincularActivoReal)
                 .filter(a -> a != null && a.getResponsable() != null)
                 .map(a -> new ResponsableDTO(
-                        a.getLocal().getCodLocal(),
-                        a.getArea().getCodArea(),
-                        codOfi,
+                        a.getLocal() != null ? a.getLocal().getCodLocal() : null,
+                        a.getArea() != null ? a.getArea().getCodArea() : null,
+                        a.getOficina() != null ? a.getOficina().getCodOficina() : null,
                         a.getResponsable().getCodResponsable(),
                         a.getResponsable().getNombreResponsable()
                 ))
@@ -87,25 +88,17 @@ public class InventariadorUbicacionService {
                 .collect(Collectors.toList());
     }
 
-    // 5. Obtener Activos (Listado final detallado)
+    // 5. Obtener TODOS los Activos del Inventariador (Sábana completa)
     @Transactional(readOnly = true)
-    public List<ActivoDetalleDTO> listarActivos(Integer codInv, Integer codOfi, Integer codResp) {
-        List<DetalleCarga> detalles;
-
-        if (codResp != null) {
-            detalles = detalleCargaRepository.buscarPorInventariadorOficinaYResponsable(codInv, codOfi, codResp);
-        } else {
-            detalles = detalleCargaRepository.buscarPorInventariadorYOficina(codInv, codOfi);
-        }
-
-        return detalles.stream()
+    public List<ActivoDetalleDTO> listarTodosLosActivos(Integer codInv) {
+        return detalleCargaRepository.findByInventariador_CodInventariador(codInv).stream()
                 .map(det -> {
                     Activo a = vincularActivoReal(det);
                     if (a == null) return null;
                     return new ActivoDetalleDTO(
-                            a.getLocal().getCodLocal(),
-                            a.getArea().getCodArea(),
-                            a.getOficina().getCodOficina(),
+                            a.getLocal() != null ? a.getLocal().getCodLocal() : null,
+                            a.getArea() != null ? a.getArea().getCodArea() : null,
+                            a.getOficina() != null ? a.getOficina().getCodOficina() : null,
                             a.getResponsable() != null ? a.getResponsable().getCodResponsable() : null,
                             a.getCodActivo(),
                             a.getDescripcion(),

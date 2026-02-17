@@ -29,24 +29,26 @@ public class InventariadorUbicacionController {
         return ubicacionService.listarAreas(codInv, codLocal);
     }
 
-    @GetMapping("/{codInv}/areas/{codArea}/oficinas")
-    @Operation(summary = "Obtener lista de oficinas por área (CodLocal, CodArea, CodOficina, Oficina)")
-    public List<OficinaDTO> getOficinas(@PathVariable Integer codInv, @PathVariable Integer codArea) {
-        return ubicacionService.listarOficinas(codInv, codArea);
+    // --- CAMBIOS SOLICITADOS ---
+
+    @GetMapping("/{codInv}/oficinas")
+    @Operation(summary = "Obtener TODAS las oficinas del inventario (CodLocal, CodArea, CodOficina, Oficina)")
+    public List<OficinaDTO> getOficinas(@PathVariable Integer codInv) {
+        // Ahora solo pide codInv y trae todas las oficinas relacionadas
+        return ubicacionService.listarTodasLasOficinas(codInv);
     }
 
-    @GetMapping("/{codInv}/oficinas/{codOfi}/responsables")
-    @Operation(summary = "Obtener responsables por oficina (CodLocal, CodArea, CodOfi, CodResp, Responsable)")
-    public List<ResponsableDTO> getResponsables(@PathVariable Integer codInv, @PathVariable Integer codOfi) {
-        return ubicacionService.listarResponsables(codInv, codOfi);
+    @GetMapping("/{codInv}/responsables")
+    @Operation(summary = "Obtener TODOS los responsables del inventario (CodLocal, CodArea, CodOfi, CodResp, Responsable)")
+    public List<ResponsableDTO> getResponsables(@PathVariable Integer codInv) {
+        // Trae todos los responsables sin filtrar por oficina
+        return ubicacionService.listarTodosLosResponsables(codInv);
     }
 
-    @GetMapping("/{codInv}/oficinas/{codOfi}/activos")
-    @Operation(summary = "Obtener activos detallados por oficina y responsable")
-    public List<ActivoDetalleDTO> getActivos(
-            @PathVariable Integer codInv,
-            @PathVariable Integer codOfi,
-            @RequestParam(required = false) Integer codResponsable) {
-        return ubicacionService.listarActivos(codInv, codOfi, codResponsable);
+    @GetMapping("/{codInv}/activos")
+    @Operation(summary = "Obtener TODOS los activos del inventario detallados")
+    public List<ActivoDetalleDTO> getActivos(@PathVariable Integer codInv) {
+        // Trae la sábana completa de activos para ese código de inventariado
+        return ubicacionService.listarTodosLosActivos(codInv);
     }
 }
