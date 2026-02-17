@@ -58,4 +58,6 @@ public interface ActivoRepository extends JpaRepository<Activo, Integer> {
             int desplazamiento
     );
     */
+
+    Optional<Activo> findByCodActivo(String codActivo);
 }
