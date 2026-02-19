@@ -148,36 +148,41 @@ public class CargaService {
                 activo.setOficina(oficinaRepository.findById(codOficinaUnica).orElse(null));
             }
 
-            // Validar código único (Trim para evitar espacios fantasma)
-            String codAct = activo.getCodActivo();
-            if (codAct != null && !codAct.trim().isEmpty() && !activoRepository.existsByCodActivoAndCodEmpresa(codAct.trim(), codEmpresa)) {
+            // Validar código único
+            if (activo.getCodActivo() != null && !activoRepository.existsByCodActivoAndCodEmpresa(activo.getCodActivo(), codEmpresa)) {
                 activosNuevos.add(activo);
                 procesados++;
             } else {
-                errores.add("Fila " + (i + 1) + ": Código '" + (codAct == null ? "VACÍO" : codAct) + "' duplicado o vacío");
+                errores.add("Fila " + (i + 1) + ": Código '" + activo.getCodActivo() + "' duplicado o vacío");
             }
         }
 
         if (!activosNuevos.isEmpty()) {
-            // ✅ CORRECCIÓN FK: Guardar activos y forzar persistencia inmediata (Flush)
-            List<Activo> guardados = activoRepository.saveAllAndFlush(activosNuevos);
 
-            for (Activo act : guardados) {
+            // 1. EL FRENO DE MANO: saveAllAndFlush
+            // Esto obliga a Spring a detenerse, enviar el paquete por la red a Postgres en Render,
+            // y esperar la confirmación física antes de pasar a la siguiente línea.
+            activoRepository.saveAllAndFlush(activosNuevos);
+
+            for (Activo act : activosNuevos) {
                 DetalleCarga det = new DetalleCarga();
                 det.setCarga(carga);
-                // Vinculamos el objeto que ya tiene ID generado en la DB
-                det.setActivo(act);
+
+                // 2. Usamos tu lógica original intacta. Sin @JoinColumn raros.
                 det.setCodActivo(act.getCodActivo());
+
                 det.setInventariado("0");
                 det.setCodEstado(1);
                 detallesNuevos.add(det);
             }
-            // Guardar detalles con la referencia de activos ya existente
+
+            // 3. Guardamos los detalles. Ahora Postgres ya sabe que los activos existen.
             detalleCargaRepository.saveAll(detallesNuevos);
 
-            // Cambiar estado a "A" y confirmar
             carga.setEstado("A");
             cargaRepository.save(carga);
+
+            // 4. Otro freno por seguridad para el estado de la carga
             cargaRepository.flush();
         }
 
@@ -321,12 +326,16 @@ public class CargaService {
                 .orElseThrow(() -> new RuntimeException("Carga no encontrada"));
     }
 
+    // ✅ AGREGAR ESTE MÉTODO EN CargaService.java (si no existe)
+
     public List<DetalleCarga> obtenerDetalleCarga(Integer codCarga, Integer codEmpresa) {
+        // Verificar que la carga pertenece a la empresa
         cargaRepository.findByCodCargaAndCodEmpresa(codCarga, codEmpresa)
                 .orElseThrow(() -> new RuntimeException("Carga no encontrada"));
 
         List<DetalleCarga> detalles = detalleCargaRepository.findByCarga_CodCargaOrderByIdAsc(codCarga);
 
+        // ✅ Cargar el objeto Activo manualmente para cada detalle
         for (DetalleCarga detalle : detalles) {
             if (detalle.getCodActivo() != null) {
                 activoRepository.findByCodActivoAndCodEmpresa(detalle.getCodActivo(), codEmpresa)
