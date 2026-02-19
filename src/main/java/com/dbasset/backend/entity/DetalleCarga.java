@@ -24,6 +24,11 @@ public class DetalleCarga {
     @Column(name = "cod_activo")
     private String codActivo;
 
+    // ✅ RELACIÓN CORREGIDA: Quitamos @Transient y mapeamos la FK
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_activo") // Asegúrate que este nombre coincida con tu columna en la DB
+    private Activo activo;
+
     @Column(name = "inventariado", length = 2)
     private String inventariado;
 
@@ -38,7 +43,7 @@ public class DetalleCarga {
     private String fechaInv;
 
     @Column(name = "obs", length = 200)
-    private String obs; // Este es el campo real en la DB
+    private String obs;
 
     @Column(name = "nuevo")
     private Integer nuevo;
@@ -57,10 +62,6 @@ public class DetalleCarga {
     @JoinColumn(name = "cod_inventariador")
     private Inventariador inventariador;
 
-    @Transient
-    private Activo activo;
-
-    // Metodo manual para facilitar la sincronizacion desde la App
     public void setObservacion(String observacion) {
         this.obs = observacion;
     }

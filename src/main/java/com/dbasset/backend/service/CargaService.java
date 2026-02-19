@@ -148,32 +148,37 @@ public class CargaService {
                 activo.setOficina(oficinaRepository.findById(codOficinaUnica).orElse(null));
             }
 
-            // Validar código único
-            if (activo.getCodActivo() != null && !activoRepository.existsByCodActivoAndCodEmpresa(activo.getCodActivo(), codEmpresa)) {
+            // Validar código único (Trim para evitar espacios fantasma)
+            String codAct = activo.getCodActivo();
+            if (codAct != null && !codAct.trim().isEmpty() && !activoRepository.existsByCodActivoAndCodEmpresa(codAct.trim(), codEmpresa)) {
                 activosNuevos.add(activo);
                 procesados++;
             } else {
-                errores.add("Fila " + (i + 1) + ": Código '" + activo.getCodActivo() + "' duplicado o vacío");
+                errores.add("Fila " + (i + 1) + ": Código '" + (codAct == null ? "VACÍO" : codAct) + "' duplicado o vacío");
             }
         }
 
         if (!activosNuevos.isEmpty()) {
-            List<Activo> guardados = activoRepository.saveAll(activosNuevos);
+            // ✅ CORRECCIÓN FK: Guardar activos y forzar persistencia inmediata (Flush)
+            List<Activo> guardados = activoRepository.saveAllAndFlush(activosNuevos);
+
             for (Activo act : guardados) {
                 DetalleCarga det = new DetalleCarga();
                 det.setCarga(carga);
+                // Vinculamos el objeto que ya tiene ID generado en la DB
                 det.setActivo(act);
                 det.setCodActivo(act.getCodActivo());
                 det.setInventariado("0");
                 det.setCodEstado(1);
                 detallesNuevos.add(det);
             }
+            // Guardar detalles con la referencia de activos ya existente
             detalleCargaRepository.saveAll(detallesNuevos);
 
-            // ✅✅✅ AQUÍ ESTÁ LO QUE FALTA - CAMBIAR ESTADO A "A" ✅✅✅
+            // Cambiar estado a "A" y confirmar
             carga.setEstado("A");
             cargaRepository.save(carga);
-            cargaRepository.flush(); // Forzar commit inmediato
+            cargaRepository.flush();
         }
 
         Map<String, Object> respuesta = new HashMap<>();
@@ -316,16 +321,12 @@ public class CargaService {
                 .orElseThrow(() -> new RuntimeException("Carga no encontrada"));
     }
 
-    // ✅ AGREGAR ESTE MÉTODO EN CargaService.java (si no existe)
-
     public List<DetalleCarga> obtenerDetalleCarga(Integer codCarga, Integer codEmpresa) {
-        // Verificar que la carga pertenece a la empresa
         cargaRepository.findByCodCargaAndCodEmpresa(codCarga, codEmpresa)
                 .orElseThrow(() -> new RuntimeException("Carga no encontrada"));
 
         List<DetalleCarga> detalles = detalleCargaRepository.findByCarga_CodCargaOrderByIdAsc(codCarga);
 
-        // ✅ Cargar el objeto Activo manualmente para cada detalle
         for (DetalleCarga detalle : detalles) {
             if (detalle.getCodActivo() != null) {
                 activoRepository.findByCodActivoAndCodEmpresa(detalle.getCodActivo(), codEmpresa)
