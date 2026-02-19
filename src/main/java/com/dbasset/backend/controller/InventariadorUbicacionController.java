@@ -5,6 +5,7 @@ import com.dbasset.backend.service.InventariadorUbicacionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,10 +24,11 @@ public class InventariadorUbicacionController {
         return ubicacionService.listarLocales(codInv);
     }
 
-    @GetMapping("/{codInv}/locales/{codLocal}/areas")
-    @Operation(summary = "Obtener lista de áreas por local (CodLocal, CodArea, Area)")
-    public List<AreaDTO> getAreas(@PathVariable Integer codInv, @PathVariable Integer codLocal) {
-        return ubicacionService.listarAreas(codInv, codLocal);
+    @GetMapping("/{codInv}/areas")
+    @Operation(summary = "Obtener TODAS las áreas del inventario (CodLocal, CodArea, Area)")
+    public List<AreaDTO> getAreas(@PathVariable Integer codInv) {
+        // Ya no pide codLocal, trae todo lo del inventariador
+        return ubicacionService.listarTodasLasAreas(codInv);
     }
 
     // --- CAMBIOS SOLICITADOS ---
@@ -50,5 +52,18 @@ public class InventariadorUbicacionController {
     public List<ActivoDetalleDTO> getActivos(@PathVariable Integer codInv) {
         // Trae la sábana completa de activos para ese código de inventariado
         return ubicacionService.listarTodosLosActivos(codInv);
+    }
+
+    @PostMapping("/sincronizar")
+    @Operation(summary = "Recepción masiva con reporte de errores")
+    public ResponseEntity<SincronizacionResponseDTO> sincronizar(@RequestBody List<SincronizacionRequestDTO> data) {
+        if (data == null || data.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        SincronizacionResponseDTO reporte = ubicacionService.procesarSincronizacionMasiva(data);
+
+        // Si hubo fallos, devolvemos un 207 (Multi-Status) o 200 con el detalle
+        return ResponseEntity.ok(reporte);
     }
 }

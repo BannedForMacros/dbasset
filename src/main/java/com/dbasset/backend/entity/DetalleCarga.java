@@ -16,8 +16,6 @@ public class DetalleCarga {
     @Column(name = "id")
     private Integer id;
 
-    // ✅ ELIMINADO: id_detalle
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cod_carga")
     @JsonBackReference
@@ -40,7 +38,7 @@ public class DetalleCarga {
     private String fechaInv;
 
     @Column(name = "obs", length = 200)
-    private String obs;
+    private String obs; // Este es el campo real en la DB
 
     @Column(name = "nuevo")
     private Integer nuevo;
@@ -61,4 +59,9 @@ public class DetalleCarga {
 
     @Transient
     private Activo activo;
+
+    // Metodo manual para facilitar la sincronizacion desde la App
+    public void setObservacion(String observacion) {
+        this.obs = observacion;
+    }
 }

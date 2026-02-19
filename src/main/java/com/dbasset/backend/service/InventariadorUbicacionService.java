@@ -9,8 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,15 +39,14 @@ public class InventariadorUbicacionService {
                 .collect(Collectors.toList());
     }
 
-    // 2. Obtener Áreas por Local
+    // 2. Obtener TODAS las Áreas del Inventariador (Solo pide codInv)
     @Transactional(readOnly = true)
-    public List<AreaDTO> listarAreas(Integer codInv, Integer codLocal) {
+    public List<AreaDTO> listarTodasLasAreas(Integer codInv) {
         return detalleCargaRepository.findByInventariador_CodInventariador(codInv).stream()
                 .map(this::vincularActivoReal)
-                .filter(a -> a != null && a.getLocal() != null && a.getArea() != null)
-                .filter(a -> a.getLocal().getCodLocal().equals(codLocal))
+                .filter(a -> a != null && a.getArea() != null)
                 .map(a -> new AreaDTO(
-                        codLocal,
+                        a.getLocal() != null ? a.getLocal().getCodLocal() : null,
                         a.getArea().getCodArea(),
                         a.getArea().getNombreArea()
                 ))
@@ -95,7 +96,10 @@ public class InventariadorUbicacionService {
                 .map(det -> {
                     Activo a = vincularActivoReal(det);
                     if (a == null) return null;
+
                     return new ActivoDetalleDTO(
+                            // Extraemos el código de la carga desde la relación con la entidad Carga
+                            det.getCarga() != null ? det.getCarga().getCodCarga() : null,
                             a.getLocal() != null ? a.getLocal().getCodLocal() : null,
                             a.getArea() != null ? a.getArea().getCodArea() : null,
                             a.getOficina() != null ? a.getOficina().getCodOficina() : null,
@@ -123,5 +127,50 @@ public class InventariadorUbicacionService {
             return activoRepository.findByCodActivo(det.getCodActivo()).orElse(null);
         }
         return null;
+    }
+
+    @Transactional
+    public SincronizacionResponseDTO procesarSincronizacionMasiva(List<SincronizacionRequestDTO> listaActivos) {
+        int exitosos = 0;
+        int fallidos = 0;
+        List<String> logsErrores = new ArrayList<>();
+
+        for (SincronizacionRequestDTO dto : listaActivos) {
+            try {
+                // 1. Buscar y actualizar DetalleCarga
+                Optional<DetalleCarga> oDetalle = detalleCargaRepository.findByInventariador_CodInventariadorAndCodActivo(
+                        dto.getCodinventariador(), dto.getCodActivo()
+                );
+
+                if (oDetalle.isPresent()) {
+                    DetalleCarga detalle = oDetalle.get();
+                    detalle.setInventariado(dto.getInventariado());
+                    detalle.setCodEstado(dto.getEstado() != null ? Integer.parseInt(dto.getEstado()) : 0);
+                    detalle.setObservacion(dto.getObservacion()); // El alias que creamos
+                    detalle.setModificado(dto.getModificado());
+                    detalle.setNuevo(dto.getEsnuevo());
+                    detalleCargaRepository.save(detalle);
+                } else {
+                    throw new Exception("No se encontró el activo en la carga del inventariador.");
+                }
+
+                // 2. Actualizar datos técnicos en Activo
+                activoRepository.findByCodActivo(dto.getCodActivo()).ifPresent(activo -> {
+                    activo.setMarca(dto.getMarca());
+                    activo.setModelo(dto.getModelo());
+                    activo.setSerie(dto.getSerie());
+                    activo.setColor(dto.getColor());
+                    activo.setDescripcion(dto.getDescripcion());
+                    activoRepository.save(activo);
+                });
+
+                exitosos++;
+            } catch (Exception e) {
+                fallidos++;
+                logsErrores.add("Error en activo " + dto.getCodActivo() + ": " + e.getMessage());
+                // Aquí podrías usar un Logger.error() para los logs internos de Render
+            }
+        }
+        return new SincronizacionResponseDTO(exitosos, fallidos, logsErrores);
     }
 }

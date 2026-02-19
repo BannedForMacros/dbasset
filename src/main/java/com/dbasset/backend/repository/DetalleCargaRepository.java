@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface DetalleCargaRepository extends JpaRepository<DetalleCarga, Integer> {
@@ -46,4 +47,6 @@ public interface DetalleCargaRepository extends JpaRepository<DetalleCarga, Inte
             @Param("codOficina") Integer codOficina,
             @Param("codResponsable") Integer codResponsable
     );
+
+    Optional<DetalleCarga> findByInventariador_CodInventariadorAndCodActivo(Integer codInv, String codActivo);
 }
