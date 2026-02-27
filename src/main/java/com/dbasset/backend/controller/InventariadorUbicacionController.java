@@ -77,4 +77,16 @@ public class InventariadorUbicacionController {
         SincronizacionResponseDTO reporte = ubicacionService.procesarReubicacionMasiva(data);
         return ResponseEntity.ok(reporte);
     }
+
+    // Añade este método en tu InventariadorUbicacionController
+    @PostMapping("/recepcionarfirma")
+    @Operation(summary = "Recepción de firmas de los responsables (Upsert)")
+    public ResponseEntity<SincronizacionResponseDTO> recepcionarFirma(@RequestBody List<FirmaRequestDTO> data) {
+        if (data == null || data.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        SincronizacionResponseDTO reporte = ubicacionService.procesarFirmasMasivas(data);
+        return ResponseEntity.ok(reporte);
+    }
 }
