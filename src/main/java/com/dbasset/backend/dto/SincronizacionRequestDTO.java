@@ -21,4 +21,5 @@ public class SincronizacionRequestDTO {
     private Integer modificado;  // 1 cambio ubicación
     private Integer codinventariador;
     private String observacion;
+    private String fechainventario;
 }

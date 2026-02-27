@@ -137,24 +137,30 @@ public class InventariadorUbicacionService {
 
         for (SincronizacionRequestDTO dto : listaActivos) {
             try {
-                // 1. Buscar y actualizar DetalleCarga
+                // 1. Buscar DetalleCarga por inventariador y código de activo
                 Optional<DetalleCarga> oDetalle = detalleCargaRepository.findByInventariador_CodInventariadorAndCodActivo(
                         dto.getCodinventariador(), dto.getCodActivo()
                 );
 
                 if (oDetalle.isPresent()) {
                     DetalleCarga detalle = oDetalle.get();
+
+                    // Actualizamos los campos de control del inventario
                     detalle.setInventariado(dto.getInventariado());
                     detalle.setCodEstado(dto.getEstado() != null ? Integer.parseInt(dto.getEstado()) : 0);
-                    detalle.setObservacion(dto.getObservacion()); // El alias que creamos
+                    detalle.setObservacion(dto.getObservacion());
                     detalle.setModificado(dto.getModificado());
                     detalle.setNuevo(dto.getEsnuevo());
+
+                    // NUEVA LÓGICA: Seteamos la fecha que viene del DTO
+                    detalle.setFechainventario(dto.getFechainventario());
+
                     detalleCargaRepository.save(detalle);
                 } else {
                     throw new Exception("No se encontró el activo en la carga del inventariador.");
                 }
 
-                // 2. Actualizar datos técnicos en Activo
+                // 2. Actualizar datos técnicos en la tabla Activo
                 activoRepository.findByCodActivo(dto.getCodActivo()).ifPresent(activo -> {
                     activo.setMarca(dto.getMarca());
                     activo.setModelo(dto.getModelo());
@@ -168,7 +174,46 @@ public class InventariadorUbicacionService {
             } catch (Exception e) {
                 fallidos++;
                 logsErrores.add("Error en activo " + dto.getCodActivo() + ": " + e.getMessage());
-                // Aquí podrías usar un Logger.error() para los logs internos de Render
+            }
+        }
+        return new SincronizacionResponseDTO(exitosos, fallidos, logsErrores);
+    }
+
+    @Transactional
+    public SincronizacionResponseDTO procesarReubicacionMasiva(List<ReubicacionRequestDTO> listaReubicaciones) {
+        int exitosos = 0;
+        int fallidos = 0;
+        List<String> logsErrores = new ArrayList<>();
+
+        for (ReubicacionRequestDTO dto : listaReubicaciones) {
+            try {
+                // 1. Buscar el detalle de la carga específica
+                Optional<DetalleCarga> oDetalle = detalleCargaRepository.findByInventariador_CodInventariadorAndCodActivo(
+                        dto.getCodinventariador(), dto.getCodActivo()
+                );
+
+                if (oDetalle.isPresent()) {
+                    DetalleCarga detalle = oDetalle.get();
+
+                    // Actualizamos a los nuevos códigos de ubicación enviados por la App
+                    // Nota: Asegúrate de tener estos setters en tu entidad DetalleCarga o mapearlos a sus objetos correspondientes
+                    detalle.setCodEstado(dto.getEstado() != null ? Integer.parseInt(dto.getEstado()) : 0);
+                    detalle.setObservacion(dto.getObservacion());
+                    detalle.setFechainventario(dto.getFechareubica()); // Usamos el campo de fecha que ya tenemos
+                    detalle.setModificado(1); // Marcamos como reubicado/modificado
+
+                    // Si tu entidad DetalleCarga maneja las relaciones de ubicación, deberías actualizarlas aquí.
+                    // Ejemplo si tienes los IDs:
+                    // detalle.setCodLocal(dto.getCodLocalreubica()); ... etc.
+
+                    detalleCargaRepository.save(detalle);
+                    exitosos++;
+                } else {
+                    throw new Exception("Activo " + dto.getCodActivo() + " no encontrado en la carga actual.");
+                }
+            } catch (Exception e) {
+                fallidos++;
+                logsErrores.add("Error reubicando activo " + dto.getCodActivo() + ": " + e.getMessage());
             }
         }
         return new SincronizacionResponseDTO(exitosos, fallidos, logsErrores);

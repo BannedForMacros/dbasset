@@ -66,4 +66,15 @@ public class InventariadorUbicacionController {
         // Si hubo fallos, devolvemos un 207 (Multi-Status) o 200 con el detalle
         return ResponseEntity.ok(reporte);
     }
+
+    @PostMapping("/reubicacion")
+    @Operation(summary = "Recepción de reubicaciones de activos desde la App móvil")
+    public ResponseEntity<SincronizacionResponseDTO> reubicacion(@RequestBody List<ReubicacionRequestDTO> data) {
+        if (data == null || data.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        SincronizacionResponseDTO reporte = ubicacionService.procesarReubicacionMasiva(data);
+        return ResponseEntity.ok(reporte);
+    }
 }

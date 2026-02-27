@@ -34,8 +34,9 @@ public class DetalleCarga {
     @JoinColumn(name = "cod_usuario")
     private Usuario usuario;
 
-    @Column(name = "fecha_inv")
-    private String fechaInv;
+
+    @Column(name = "fechainventario")
+    private String fechainventario;
 
     @Column(name = "obs", length = 200)
     private String obs; // Este es el campo real en la DB
@@ -64,4 +65,6 @@ public class DetalleCarga {
     public void setObservacion(String observacion) {
         this.obs = observacion;
     }
+
+
 }
