@@ -54,7 +54,7 @@ public class InventariadorUbicacionController {
         return ubicacionService.listarTodosLosActivos(codInv);
     }
 
-    @PostMapping("/sincronizar")
+    @PostMapping(value = "/sincronizar", consumes = "application/json;charset=UTF-8")
     @Operation(summary = "Recepción masiva con reporte de errores")
     public ResponseEntity<SincronizacionResponseDTO> sincronizar(@RequestBody List<SincronizacionRequestDTO> data) {
         if (data == null || data.isEmpty()) {
