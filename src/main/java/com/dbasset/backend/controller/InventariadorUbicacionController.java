@@ -20,6 +20,10 @@ public class InventariadorUbicacionController {
     @Autowired
     private com.dbasset.backend.repository.CargaFirmaRepository cargaFirmaRepository;
 
+    @Autowired
+    private com.dbasset.backend.repository.ReubicacionRepository reubicacionRepository;
+
+
     @GetMapping("/{codInv}/locales")
     @Operation(summary = "Obtener lista de locales (CodLocal, Local, Direccion)")
     public List<LocalDTO> getLocales(@PathVariable Integer codInv) {
@@ -98,5 +102,19 @@ public class InventariadorUbicacionController {
     public ResponseEntity<List<com.dbasset.backend.entity.CargaFirma>> getFirmasPorCarga(
             @PathVariable Integer codCarga) {
         return ResponseEntity.ok(cargaFirmaRepository.findByCodCarga(codCarga));
+    }
+
+    @GetMapping("/reubicaciones/por-activo/{codActivo}")
+    @Operation(summary = "Historial de reubicaciones de un activo")
+    public ResponseEntity<List<com.dbasset.backend.entity.Reubicacion>> getReubicacionesPorActivo(
+            @PathVariable String codActivo) {
+        return ResponseEntity.ok(reubicacionRepository.findByCodActivoOrderByFechaRegistroDesc(codActivo));
+    }
+
+    @GetMapping("/reubicaciones/por-carga/{codCarga}")
+    @Operation(summary = "Todas las reubicaciones de una carga")
+    public ResponseEntity<List<com.dbasset.backend.entity.Reubicacion>> getReubicacionesPorCarga(
+            @PathVariable Integer codCarga) {
+        return ResponseEntity.ok(reubicacionRepository.findByCodCarga(codCarga));
     }
 }

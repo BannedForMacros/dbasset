@@ -7,6 +7,8 @@ import com.dbasset.backend.entity.DetalleCarga;
 import com.dbasset.backend.repository.ActivoRepository;
 import com.dbasset.backend.repository.DetalleCargaRepository;
 import com.dbasset.backend.repository.CargaFirmaRepository;
+import com.dbasset.backend.entity.Reubicacion;
+import com.dbasset.backend.repository.ReubicacionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,11 @@ public class InventariadorUbicacionService {
     // Asegúrate de inyectar el repositorio al inicio de tu Service
     @Autowired
     private CargaFirmaRepository cargaFirmaRepository;
+
+    @Autowired
+    private ReubicacionRepository reubicacionRepository;
+
+
 
     // 1. Obtener Locales (CodLocal, Local, Direccion)
     @Transactional(readOnly = true)
@@ -193,28 +200,70 @@ public class InventariadorUbicacionService {
 
         for (ReubicacionRequestDTO dto : listaReubicaciones) {
             try {
-                Optional<DetalleCarga> oDetalle = detalleCargaRepository.findByInventariador_CodInventariadorAndCodActivo(
-                        dto.getCodinventariador(), dto.getCodActivo()
-                );
-
-                if (oDetalle.isPresent()) {
-                    DetalleCarga detalle = oDetalle.get();
-
-                    detalle.setCodEstado(dto.getEstado() != null ? Integer.parseInt(dto.getEstado()) : 0);
-                    detalle.setObservacion(dto.getObservacion());
-                    detalle.setFechainventario(dto.getFechareubica());
-                    detalle.setModificado(1);
-
-                    detalle.setCodLocalReubica(dto.getCodLocalreubica());
-                    detalle.setCodAreaReubica(dto.getCodAreareubica());
-                    detalle.setCodOficinaReubica(dto.getCodOficinareubica());
-                    detalle.setCodRespReubica(dto.getCodResponsablereubica());
-
-                    detalleCargaRepository.save(detalle);
-                    exitosos++;
-                } else {
-                    throw new Exception("Activo " + dto.getCodActivo() + " no encontrado en la carga actual.");
+                // 1. Resolver codActivo real si viene como ID numérico
+                String codActivoReal = dto.getCodActivo();
+                try {
+                    Integer idActivo = Integer.parseInt(dto.getCodActivo());
+                    Optional<Activo> activoOpt = activoRepository.findById(idActivo);
+                    if (activoOpt.isPresent()) {
+                        codActivoReal = activoOpt.get().getCodActivo();
+                    }
+                } catch (NumberFormatException ignored) {
+                    // Ya viene como "ACT-2029-001", lo usamos directo
                 }
+
+                // 2. Buscar el detalle actual para capturar ubicación anterior
+                Optional<DetalleCarga> oDetalle = detalleCargaRepository
+                        .findByInventariador_CodInventariadorAndCodActivo(
+                                dto.getCodinventariador(), codActivoReal
+                        );
+
+                if (oDetalle.isEmpty()) {
+                    throw new Exception("Activo " + codActivoReal + " no encontrado en la carga.");
+                }
+
+                DetalleCarga detalle = oDetalle.get();
+                Activo activo = vincularActivoReal(detalle);
+
+                // 3. Guardar historial en tabla reubicacion
+                Reubicacion reubicacion = new Reubicacion();
+                reubicacion.setCodCarga(dto.getCodCarga());
+                reubicacion.setCodActivo(codActivoReal);
+                reubicacion.setCodInventariador(dto.getCodinventariador());
+                reubicacion.setFechaReubicacion(dto.getFechareubica());
+                reubicacion.setEstado(dto.getEstado());
+                reubicacion.setObservacion(dto.getObservacion());
+
+                // Capturamos ubicación anterior desde el Activo
+                if (activo != null) {
+                    reubicacion.setCodLocalAnterior(activo.getLocal() != null ? activo.getLocal().getCodLocal() : null);
+                    reubicacion.setCodAreaAnterior(activo.getArea() != null ? activo.getArea().getCodArea() : null);
+                    reubicacion.setCodOficinaAnterior(activo.getOficina() != null ? activo.getOficina().getCodOficina() : null);
+                    reubicacion.setCodRespAnterior(activo.getResponsable() != null ? activo.getResponsable().getCodResponsable() : null);
+                }
+
+                // Ubicación nueva desde el DTO
+                reubicacion.setCodLocalNuevo(dto.getCodLocalreubica());
+                reubicacion.setCodAreaNuevo(dto.getCodAreareubica());
+                reubicacion.setCodOficinaaNuevo(dto.getCodOficinareubica());
+                reubicacion.setCodRespNuevo(dto.getCodResponsablereubica());
+
+                reubicacionRepository.save(reubicacion);
+
+                // 4. Actualizar la ubicación actual del Activo
+                if (activo != null) {
+                    if (dto.getCodLocalreubica() != null)
+                        activo.getLocal().setCodLocal(dto.getCodLocalreubica()); // solo si Local es mutable
+                    // Mejor actualizar via query directa o setear los objetos de relación:
+                    activoRepository.save(activo);
+                }
+
+                // 5. Actualizar DetalleCarga con modificado = 1
+                detalle.setModificado(1);
+                detalle.setFechainventario(dto.getFechareubica());
+                detalleCargaRepository.save(detalle);
+
+                exitosos++;
             } catch (Exception e) {
                 fallidos++;
                 logsErrores.add("Error reubicando activo " + dto.getCodActivo() + ": " + e.getMessage());
