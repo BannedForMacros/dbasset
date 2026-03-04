@@ -65,6 +65,16 @@ public class DetalleCarga {
     public void setObservacion(String observacion) {
         this.obs = observacion;
     }
+    @Column(name = "cod_local_reubica")
+    private Integer codLocalReubica;
 
+    @Column(name = "cod_area_reubica")
+    private Integer codAreaReubica;
+
+    @Column(name = "cod_oficina_reubica")
+    private Integer codOficinaReubica;
+
+    @Column(name = "cod_resp_reubica")
+    private Integer codRespReubica;
 
 }

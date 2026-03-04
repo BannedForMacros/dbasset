@@ -193,7 +193,6 @@ public class InventariadorUbicacionService {
 
         for (ReubicacionRequestDTO dto : listaReubicaciones) {
             try {
-                // 1. Buscar el detalle de la carga específica
                 Optional<DetalleCarga> oDetalle = detalleCargaRepository.findByInventariador_CodInventariadorAndCodActivo(
                         dto.getCodinventariador(), dto.getCodActivo()
                 );
@@ -201,16 +200,15 @@ public class InventariadorUbicacionService {
                 if (oDetalle.isPresent()) {
                     DetalleCarga detalle = oDetalle.get();
 
-                    // Actualizamos a los nuevos códigos de ubicación enviados por la App
-                    // Nota: Asegúrate de tener estos setters en tu entidad DetalleCarga o mapearlos a sus objetos correspondientes
                     detalle.setCodEstado(dto.getEstado() != null ? Integer.parseInt(dto.getEstado()) : 0);
                     detalle.setObservacion(dto.getObservacion());
-                    detalle.setFechainventario(dto.getFechareubica()); // Usamos el campo de fecha que ya tenemos
-                    detalle.setModificado(1); // Marcamos como reubicado/modificado
+                    detalle.setFechainventario(dto.getFechareubica());
+                    detalle.setModificado(1);
 
-                    // Si tu entidad DetalleCarga maneja las relaciones de ubicación, deberías actualizarlas aquí.
-                    // Ejemplo si tienes los IDs:
-                    // detalle.setCodLocal(dto.getCodLocalreubica()); ... etc.
+                    detalle.setCodLocalReubica(dto.getCodLocalreubica());
+                    detalle.setCodAreaReubica(dto.getCodAreareubica());
+                    detalle.setCodOficinaReubica(dto.getCodOficinareubica());
+                    detalle.setCodRespReubica(dto.getCodResponsablereubica());
 
                     detalleCargaRepository.save(detalle);
                     exitosos++;
