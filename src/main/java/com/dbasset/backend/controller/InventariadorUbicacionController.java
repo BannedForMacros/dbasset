@@ -17,6 +17,8 @@ public class InventariadorUbicacionController {
 
     @Autowired
     private InventariadorUbicacionService ubicacionService;
+    @Autowired
+    private com.dbasset.backend.repository.CargaFirmaRepository cargaFirmaRepository;
 
     @GetMapping("/{codInv}/locales")
     @Operation(summary = "Obtener lista de locales (CodLocal, Local, Direccion)")
@@ -88,5 +90,13 @@ public class InventariadorUbicacionController {
 
         SincronizacionResponseDTO reporte = ubicacionService.procesarFirmasMasivas(data);
         return ResponseEntity.ok(reporte);
+    }
+
+    // Y el nuevo endpoint al final de la clase:
+    @GetMapping("/carga-firmas/por-carga/{codCarga}")
+    @Operation(summary = "Obtener firmas registradas por carga")
+    public ResponseEntity<List<com.dbasset.backend.entity.CargaFirma>> getFirmasPorCarga(
+            @PathVariable Integer codCarga) {
+        return ResponseEntity.ok(cargaFirmaRepository.findByCodCarga(codCarga));
     }
 }

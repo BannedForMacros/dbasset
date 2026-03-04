@@ -3,6 +3,8 @@ package com.dbasset.backend.repository;
 import com.dbasset.backend.entity.CargaFirma;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -12,4 +14,5 @@ public interface CargaFirmaRepository extends JpaRepository<CargaFirma, Integer>
     Optional<CargaFirma> findByCodCargaAndCodResponsableAndCodOficina(
             Integer codCarga, Integer codResponsable, String codOficina
     );
+    List<CargaFirma> findByCodCarga(Integer codCarga);
 }
