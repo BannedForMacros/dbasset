@@ -9,7 +9,10 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "m_activos", schema = "dbasset")
+@Table(name = "m_activos", schema = "dbasset",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uq_activo_empresa_codigo",
+                columnNames = {"cod_empresa", "cod_activo"}))
 public class Activo {
 
     @Id
@@ -20,7 +23,9 @@ public class Activo {
     @Column(name = "cod_empresa", nullable = false)
     private Integer codEmpresa;
 
-    @Column(name = "cod_activo", unique = true, nullable = false)
+    // Único por empresa (no global): el mismo cod_activo puede existir en
+    // empresas distintas. La unicidad compuesta se declara a nivel de @Table.
+    @Column(name = "cod_activo", nullable = false)
     private String codActivo;
 
     @Column(name = "cod_interno")

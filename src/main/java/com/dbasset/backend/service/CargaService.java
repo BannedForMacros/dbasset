@@ -120,9 +120,15 @@ public class CargaService {
         }
 
         List<Activo> activosNuevos = new ArrayList<>();
+        // Códigos que tendrán línea en esta carga (existan ya o se creen ahora).
+        List<String> codigosParaDetalle = new ArrayList<>();
+        // Evita procesar dos veces el mismo código dentro del MISMO Excel.
+        Set<String> codigosVistosEnArchivo = new HashSet<>();
         List<DetalleCarga> detallesNuevos = new ArrayList<>();
         List<String> errores = new ArrayList<>();
-        int procesados = 0;
+        int procesados = 0;        // líneas de detalle generadas para esta carga
+        int activosCreados = 0;    // activos nuevos dados de alta en el maestro
+        int activosReusados = 0;   // activos que ya existían y se reutilizan
 
         for (int i = 1; i <= sheet.getLastRowNum(); i++) {
             Row row = sheet.getRow(i);
@@ -148,47 +154,68 @@ public class CargaService {
                 activo.setOficina(oficinaRepository.findById(codOficinaUnica).orElse(null));
             }
 
-            // Validar código único
-            if (activo.getCodActivo() != null && !activoRepository.existsByCodActivoAndCodEmpresa(activo.getCodActivo(), codEmpresa)) {
-                activosNuevos.add(activo);
-                procesados++;
-            } else {
-                errores.add("Fila " + (i + 1) + ": Código '" + activo.getCodActivo() + "' duplicado o vacío");
+            String codActivo = activo.getCodActivo();
+
+            // El código es obligatorio
+            if (codActivo == null || codActivo.isEmpty()) {
+                errores.add("Fila " + (i + 1) + ": Código vacío");
+                continue;
             }
+
+            // Evitar duplicados dentro del propio archivo (mismo código repetido en el Excel)
+            if (!codigosVistosEnArchivo.add(codActivo)) {
+                errores.add("Fila " + (i + 1) + ": Código '" + codActivo + "' repetido dentro del archivo");
+                continue;
+            }
+
+            // Decisión 1: ¿hay que dar de alta el activo en el maestro?
+            // Solo si NO existe ya para esta empresa. Si existe, se reutiliza.
+            if (!activoRepository.existsByCodActivoAndCodEmpresa(codActivo, codEmpresa)) {
+                activosNuevos.add(activo);
+                activosCreados++;
+            } else {
+                activosReusados++;
+            }
+
+            // Decisión 2: SIEMPRE se crea la línea de detalle para ESTA carga,
+            // exista o no el activo. Esto permite re-inventariar los mismos
+            // activos en una carga nueva (otra "entrada").
+            codigosParaDetalle.add(codActivo);
+            procesados++;
         }
 
+        // 1. Dar de alta los activos nuevos (los existentes se reutilizan tal cual).
         if (!activosNuevos.isEmpty()) {
-
-            // 1. EL FRENO DE MANO: saveAllAndFlush
-            // Esto obliga a Spring a detenerse, enviar el paquete por la red a Postgres en Render,
-            // y esperar la confirmación física antes de pasar a la siguiente línea.
+            // EL FRENO DE MANO: saveAllAndFlush obliga a confirmar físicamente
+            // en Postgres antes de crear los detalles que referencian cod_activo.
             activoRepository.saveAllAndFlush(activosNuevos);
+        }
 
-            for (Activo act : activosNuevos) {
+        // 2. Crear las líneas de detalle para todos los códigos de esta carga.
+        if (!codigosParaDetalle.isEmpty()) {
+            for (String codActivo : codigosParaDetalle) {
                 DetalleCarga det = new DetalleCarga();
                 det.setCarga(carga);
-
-                // 2. Usamos tu lógica original intacta. Sin @JoinColumn raros.
-                det.setCodActivo(act.getCodActivo());
-
+                det.setCodActivo(codActivo);
                 det.setInventariado("0");
                 det.setCodEstado(1);
                 detallesNuevos.add(det);
             }
 
-            // 3. Guardamos los detalles. Ahora Postgres ya sabe que los activos existen.
             detalleCargaRepository.saveAll(detallesNuevos);
 
             carga.setEstado("A");
             cargaRepository.save(carga);
 
-            // 4. Otro freno por seguridad para el estado de la carga
+            // Freno por seguridad para el estado de la carga
             cargaRepository.flush();
         }
 
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("mensaje", "Proceso completado");
         respuesta.put("totalProcesados", procesados);
+        respuesta.put("activosCreados", activosCreados);
+        respuesta.put("activosReusados", activosReusados);
         respuesta.put("errores", errores);
         return respuesta;
     }
