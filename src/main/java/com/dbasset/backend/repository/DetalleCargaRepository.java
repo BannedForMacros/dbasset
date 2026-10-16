@@ -49,4 +49,8 @@ public interface DetalleCargaRepository extends JpaRepository<DetalleCarga, Inte
     );
 
     Optional<DetalleCarga> findByInventariador_CodInventariadorAndCodActivo(Integer codInv, String codActivo);
+
+    // El mismo activo puede estar en varias cargas del mismo inventariador: se devuelven todas
+    // (la más reciente primero) y el servicio elige la de la carga indicada.
+    List<DetalleCarga> findByInventariador_CodInventariadorAndCodActivoOrderByIdDesc(Integer codInv, String codActivo);
 }

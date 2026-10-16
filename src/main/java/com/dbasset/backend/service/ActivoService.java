@@ -50,6 +50,13 @@ public class ActivoService {
 
         // 2. Asignar la empresa
         activo.setCodEmpresa(codEmpresa);
+        activo.setSituacion("ACTIVO");
+
+        // 2b. EPC opcional: normalizado y único por empresa
+        activo.setEpc(EpcUtil.normalizar(activo.getEpc()));
+        if (activo.getEpc() != null && activoRepository.existsByEpcAndCodEmpresa(activo.getEpc(), codEmpresa)) {
+            throw new RuntimeException("El EPC '" + activo.getEpc() + "' ya está vinculado a otro activo.");
+        }
 
         // 3. Hidratar relaciones (Validar que existen)
         if (activo.getLocal() != null && activo.getLocal().getCodLocal() != null) {
@@ -93,6 +100,8 @@ public class ActivoService {
         activoExistente.setColor(activoDatos.getColor());
         activoExistente.setCodInterno(activoDatos.getCodInterno());
         activoExistente.setFechaCompra(activoDatos.getFechaCompra());
+        // El EPC solo cambia por PUT /api/activos/{id}/epc, para que un cliente que no lo envía no lo borre
+        if (activoDatos.getCategoria() != null) activoExistente.setCategoria(activoDatos.getCategoria());
 
         // Actualizar relaciones si vienen
         if (activoDatos.getLocal() != null) activoExistente.setLocal(localRepository.findById(activoDatos.getLocal().getCodLocal()).orElse(null));

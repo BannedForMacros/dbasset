@@ -124,6 +124,9 @@ public class CargaService {
         List<String> codigosParaDetalle = new ArrayList<>();
         // Evita procesar dos veces el mismo código dentro del MISMO Excel.
         Set<String> codigosVistosEnArchivo = new HashSet<>();
+        Set<String> epcsVistosEnArchivo = new HashSet<>();
+        Map<String, String> epcParaExistentes = new LinkedHashMap<>(); // codActivo -> EPC
+        int epcVinculados = 0;
         List<DetalleCarga> detallesNuevos = new ArrayList<>();
         List<String> errores = new ArrayList<>();
         int procesados = 0;        // líneas de detalle generadas para esta carga
@@ -168,12 +171,34 @@ public class CargaService {
                 continue;
             }
 
+            // EPC (opcional): normalizado, sin repetirse en el archivo ni en otro activo.
+            // Si es inválido o choca, el activo igual se importa pero sin EPC.
+            String epcFila = null;
+            if (activo.getEpc() != null && !activo.getEpc().isBlank()) {
+                String normal = EpcUtil.normalizarOmitir(activo.getEpc());
+                if (normal == null) {
+                    errores.add("Fila " + (i + 1) + ": EPC inválido '" + activo.getEpc() + "' (se importó sin EPC)");
+                } else if (!epcsVistosEnArchivo.add(normal)) {
+                    errores.add("Fila " + (i + 1) + ": EPC " + normal + " repetido dentro del archivo (se importó sin EPC)");
+                } else {
+                    epcFila = normal;
+                }
+            }
+            activo.setEpc(null);
+
             // Decisión 1: ¿hay que dar de alta el activo en el maestro?
             // Solo si NO existe ya para esta empresa. Si existe, se reutiliza.
             if (!activoRepository.existsByCodActivoAndCodEmpresa(codActivo, codEmpresa)) {
+                if (epcFila != null && activoRepository.existsByEpcAndCodEmpresa(epcFila, codEmpresa)) {
+                    errores.add("Fila " + (i + 1) + ": EPC " + epcFila + " ya pertenece a otro activo (se importó sin EPC)");
+                } else {
+                    activo.setEpc(epcFila);
+                }
                 activosNuevos.add(activo);
                 activosCreados++;
             } else {
+                // Activo existente: el EPC del Excel sirve para vincularlo si aún no tiene tag
+                if (epcFila != null) epcParaExistentes.put(codActivo, epcFila);
                 activosReusados++;
             }
 
@@ -189,6 +214,23 @@ public class CargaService {
             // EL FRENO DE MANO: saveAllAndFlush obliga a confirmar físicamente
             // en Postgres antes de crear los detalles que referencian cod_activo.
             activoRepository.saveAllAndFlush(activosNuevos);
+        }
+
+        // 1b. Vincular EPC a activos que ya existían y no tenían tag
+        for (Map.Entry<String, String> e : epcParaExistentes.entrySet()) {
+            Optional<Activo> existente = activoRepository.findByCodActivoAndCodEmpresa(e.getKey(), codEmpresa);
+            if (existente.isEmpty()) continue;
+            Activo a = existente.get();
+            if (e.getValue().equals(a.getEpc())) continue;
+            if (a.getEpc() != null) {
+                errores.add("Activo " + e.getKey() + ": ya tiene el EPC " + a.getEpc() + "; no se cambió por " + e.getValue());
+            } else if (activoRepository.existsByEpcAndCodEmpresa(e.getValue(), codEmpresa)) {
+                errores.add("Activo " + e.getKey() + ": el EPC " + e.getValue() + " ya pertenece a otro activo");
+            } else {
+                a.setEpc(e.getValue());
+                activoRepository.saveAndFlush(a);
+                epcVinculados++;
+            }
         }
 
         // 2. Crear las líneas de detalle para todos los códigos de esta carga.
@@ -216,6 +258,7 @@ public class CargaService {
         respuesta.put("totalProcesados", procesados);
         respuesta.put("activosCreados", activosCreados);
         respuesta.put("activosReusados", activosReusados);
+        respuesta.put("epcVinculados", epcVinculados);
         respuesta.put("errores", errores);
         return respuesta;
     }
@@ -320,6 +363,8 @@ public class CargaService {
             case "placa": activo.setPlaca(valor); break;
             case "cod_color": activo.setCodColor(valor); break;
             case "obs": activo.setObs(valor); break;
+            case "epc": activo.setEpc(valor); break; // se normaliza y valida en importarMasivo
+            case "categoria": activo.setCategoria(valor); break;
 
             // ✅ MAPEO DE UBICACIÓN (Escenario 1)
             case "cod_local":

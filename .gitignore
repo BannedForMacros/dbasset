@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Archivos subidos (fotos y sustentos de bajas) ###
+/archivos/

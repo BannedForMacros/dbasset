@@ -60,4 +60,23 @@ public interface ActivoRepository extends JpaRepository<Activo, Integer> {
     */
 
     Optional<Activo> findByCodActivo(String codActivo);
+
+    // --- RFID ---
+    Optional<Activo> findByEpcAndCodEmpresaAndActivoTrue(String epc, Integer codEmpresa);
+
+    boolean existsByEpcAndCodEmpresaAndIdNot(String epc, Integer codEmpresa, Integer id);
+
+    boolean existsByEpcAndCodEmpresa(String epc, Integer codEmpresa);
+
+    List<Activo> findByCodEmpresaAndActivoTrueAndEpcIsNullAndSituacion(Integer codEmpresa, String situacion);
+
+    @Query("SELECT a FROM Activo a WHERE a.codEmpresa = :codEmpresa AND a.activo = true " +
+            "AND (:incluirBajas = true OR a.situacion = 'ACTIVO') " +
+            "AND (LOWER(a.codActivo) LIKE :patron OR LOWER(COALESCE(a.descripcion,'')) LIKE :patron " +
+            "OR LOWER(COALESCE(a.serie,'')) LIKE :patron OR LOWER(COALESCE(a.epc,'')) LIKE :patron " +
+            "OR LOWER(COALESCE(a.codInterno,'')) LIKE :patron) ORDER BY a.codActivo")
+    List<Activo> buscarTexto(@Param("codEmpresa") Integer codEmpresa,
+                             @Param("patron") String patron,
+                             @Param("incluirBajas") boolean incluirBajas,
+                             org.springframework.data.domain.Pageable pageable);
 }

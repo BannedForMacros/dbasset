@@ -73,6 +73,18 @@ public class Activo {
     @Column(name = "obs")
     private String obs;
 
+    // --- RFID ---
+    // EPC del tag (hexadecimal en mayúsculas, sin espacios). Único por empresa.
+    @Column(name = "epc")
+    private String epc;
+
+    @Column(name = "categoria")
+    private String categoria;
+
+    // ACTIVO o INACTIVO (dado de baja). La baja NO borra el registro.
+    @Column(name = "situacion", nullable = false)
+    private String situacion = "ACTIVO";
+
     // --- RELACIONES ---
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "cod_local")
