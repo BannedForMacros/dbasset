@@ -6,6 +6,7 @@ import com.dbasset.backend.entity.Rol;
 import com.dbasset.backend.repository.PermisoRepository;
 import com.dbasset.backend.repository.RolRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -164,7 +165,7 @@ public class RolPermisoService {
                 FROM dbasset.rol_permiso rp
                 JOIN dbasset.permiso p ON p.cod_permiso = rp.cod_permiso
                 ORDER BY p.orden
-                """, rs -> res.computeIfAbsent(rs.getInt(1), k -> new ArrayList<>()).add(rs.getString(2)));
+                """, (RowCallbackHandler) rs -> res.computeIfAbsent(rs.getInt(1), k -> new ArrayList<>()).add(rs.getString(2)));
         return res;
     }
 
@@ -192,7 +193,7 @@ public class RolPermisoService {
     private Map<Integer, Integer> usuariosPorRol() {
         Map<Integer, Integer> res = new HashMap<>();
         jdbc.query("SELECT cod_rol, COUNT(*) FROM dbasset.usuario_empresa WHERE activo = TRUE AND cod_rol IS NOT NULL GROUP BY cod_rol",
-                rs -> res.put(rs.getInt(1), rs.getInt(2)));
+                (RowCallbackHandler) rs -> res.put(rs.getInt(1), rs.getInt(2)));
         return res;
     }
 
