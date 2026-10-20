@@ -32,6 +32,9 @@ public class UsuarioService {
     public Usuario guardar(Usuario usuario) {
         // Aquí podrías validar si el nombre de usuario ya existe
         // o encriptar la contraseña antes de guardar.
+        // Este endpoint no está protegido: nunca puede crear superadministradores ni reactivar cuentas
+        usuario.setEsSuperadmin(false);
+        if (usuario.getActivo() == null) usuario.setActivo(true);
         return usuarioRepository.save(usuario);
     }
 

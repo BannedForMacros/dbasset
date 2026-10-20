@@ -28,7 +28,8 @@ public class CustomUserDetailsService implements UserDetailsService {
             return User.builder()
                     .username(u.getNombreUsuario())
                     .password(u.getClave())
-                    .roles("ADMIN")
+                    .roles(Boolean.TRUE.equals(u.getEsSuperadmin()) ? new String[]{"ADMIN", "SUPERADMIN"} : new String[]{"ADMIN"})
+                    .disabled(Boolean.FALSE.equals(u.getActivo()))
                     .build();
         }
 

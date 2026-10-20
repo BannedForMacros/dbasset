@@ -46,7 +46,11 @@ public class AuthController {
 
             if (userOpt.isPresent()) {
                 Usuario user = userOpt.get();
-                List<EmpresaResumen> empresas = usuarioRepository.findEmpresasByUsuario(user.getCodUsuario());
+                boolean esSuperadmin = Boolean.TRUE.equals(user.getEsSuperadmin());
+                // El superadmin solo administra empresas y usuarios: no opera dentro de ninguna empresa
+                List<EmpresaResumen> empresas = esSuperadmin
+                        ? List.of()
+                        : usuarioRepository.findEmpresasByUsuario(user.getCodUsuario());
 
                 response.put("usuario", user.getNombreUsuario());
                 response.put("nombreCompleto", user.getNombreCompleto());
@@ -54,6 +58,7 @@ public class AuthController {
                 response.put("tipoUsu", user.getTipoUsu());
                 response.put("codPersona", user.getCodUsuario()); // ID único para el frontend
                 response.put("empresas", empresas);
+                response.put("esSuperadmin", esSuperadmin);
 
             } else {
                 // 3. Si no es un usuario de oficina, buscamos en Inventariadores (INVEN)

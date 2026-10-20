@@ -4,6 +4,7 @@ import com.dbasset.backend.controller.BajaController;
 import com.dbasset.backend.controller.InventarioRfidController;
 import com.dbasset.backend.controller.ReporteController;
 import com.dbasset.backend.controller.RfidActivoController;
+import com.dbasset.backend.controller.SuperAdminController;
 import com.dbasset.backend.controller.TransferenciaController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,7 +25,7 @@ import java.util.Map;
  */
 @RestControllerAdvice(assignableTypes = {
         RfidActivoController.class, InventarioRfidController.class, TransferenciaController.class,
-        BajaController.class, ReporteController.class})
+        BajaController.class, ReporteController.class, SuperAdminController.class})
 public class RfidExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(RfidExceptionHandler.class);
