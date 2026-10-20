@@ -5,6 +5,7 @@ import com.dbasset.backend.entity.Usuario;
 import com.dbasset.backend.repository.EmpresaResumen;
 import com.dbasset.backend.repository.InventariadorRepository;
 import com.dbasset.backend.repository.UsuarioRepository;
+import com.dbasset.backend.service.RolPermisoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -12,7 +13,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -25,6 +28,7 @@ public class AuthController {
     @Autowired private AuthenticationManager authenticationManager;
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private InventariadorRepository inventariadorRepository; // Inyectamos el repo de inventariadores
+    @Autowired private RolPermisoService rolPermisoService;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
@@ -48,9 +52,9 @@ public class AuthController {
                 Usuario user = userOpt.get();
                 boolean esSuperadmin = Boolean.TRUE.equals(user.getEsSuperadmin());
                 // El superadmin solo administra empresas y usuarios: no opera dentro de ninguna empresa
-                List<EmpresaResumen> empresas = esSuperadmin
+                List<Map<String, Object>> empresas = esSuperadmin
                         ? List.of()
-                        : usuarioRepository.findEmpresasByUsuario(user.getCodUsuario());
+                        : empresasConPermisos(user.getCodUsuario());
 
                 response.put("usuario", user.getNombreUsuario());
                 response.put("nombreCompleto", user.getNombreCompleto());
@@ -81,5 +85,24 @@ public class AuthController {
             System.err.println("Error en login: " + e.getMessage());
             return ResponseEntity.status(401).body(Map.of("error", "Credenciales incorrectas o usuario no activo"));
         }
+    }
+
+    /** Empresas del usuario con el nombre del rol y la lista de permisos que ese rol tiene. */
+    private List<Map<String, Object>> empresasConPermisos(Integer codUsuario) {
+        Map<Integer, List<String>> permisosPorRol = rolPermisoService.permisosPorRol();
+        List<Map<String, Object>> res = new ArrayList<>();
+        for (EmpresaResumen e : usuarioRepository.findEmpresasByUsuario(codUsuario)) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("codEmpresa", e.getCodEmpresa());
+            m.put("ruc", e.getRuc());
+            m.put("razonSocial", e.getRazonSocial());
+            m.put("codRol", e.getCodRol());
+            m.put("rol", e.getRol());
+            m.put("permisos", e.getCodRol() == null
+                    ? List.of()
+                    : permisosPorRol.getOrDefault(e.getCodRol(), List.of()));
+            res.add(m);
+        }
+        return res;
     }
 }
