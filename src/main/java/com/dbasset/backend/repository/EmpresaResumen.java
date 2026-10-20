@@ -5,5 +5,6 @@ public interface EmpresaResumen {
     Integer getCodEmpresa();
     String getRuc();
     String getRazonSocial();
-    String getRol(); // Opcional, si quieres saber si es ADMIN u OPERADOR en esa empresa
+    Integer getCodRol();
+    String getRol(); // Nombre del rol del usuario en esa empresa (ADMIN, AUDITOR, ...)
 }
