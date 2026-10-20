@@ -2,9 +2,11 @@ package com.dbasset.backend.service;
 
 import com.dbasset.backend.config.RfidException;
 import com.dbasset.backend.entity.Empresa;
+import com.dbasset.backend.entity.Rol;
 import com.dbasset.backend.entity.Usuario;
 import com.dbasset.backend.repository.EmpresaRepository;
 import com.dbasset.backend.repository.InventariadorRepository;
+import com.dbasset.backend.repository.RolRepository;
 import com.dbasset.backend.repository.UsuarioRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -18,18 +20,19 @@ import java.util.*;
 @Service
 public class SuperAdminService {
 
-    public static final Set<String> ROLES = Set.of("ADMIN", "AUDITOR");
-
     private final EmpresaRepository empresaRepository;
     private final UsuarioRepository usuarioRepository;
     private final InventariadorRepository inventariadorRepository;
+    private final RolRepository rolRepository;
     private final JdbcTemplate jdbc;
 
     public SuperAdminService(EmpresaRepository empresaRepository, UsuarioRepository usuarioRepository,
-                             InventariadorRepository inventariadorRepository, JdbcTemplate jdbc) {
+                             InventariadorRepository inventariadorRepository, RolRepository rolRepository,
+                             JdbcTemplate jdbc) {
         this.empresaRepository = empresaRepository;
         this.usuarioRepository = usuarioRepository;
         this.inventariadorRepository = inventariadorRepository;
+        this.rolRepository = rolRepository;
         this.jdbc = jdbc;
     }
 
@@ -38,7 +41,12 @@ public class SuperAdminService {
     public record UsuarioRequest(String nombreUsuario, String clave, String nombreCompleto, String descripcion,
                                  Integer tipoUsu, Boolean esSuperadmin, Boolean activo) {}
 
-    public record Asignacion(Integer codEmpresa, String rol) {}
+    /** codRol es el identificador del catálogo; "rol" (nombre) se acepta por compatibilidad. */
+    public record Asignacion(Integer codEmpresa, Integer codRol, String rol) {}
+
+    public record AsignacionRequest(Integer codUsuario, Integer codRol, Boolean activo) {}
+
+    public record UsuarioEmpresaRequest(UsuarioRequest usuario, Integer codRol) {}
 
     // ------------------------------------------------------------------ empresas
 
@@ -100,18 +108,21 @@ public class SuperAdminService {
     public List<Map<String, Object>> listarUsuarios() {
         Map<Integer, List<Map<String, Object>>> asignaciones = new HashMap<>();
         jdbc.query("""
-                SELECT ue.cod_usuario, ue.cod_empresa, ue.rol_en_empresa, e.razon_social, e.ruc, e.activo
+                SELECT ue.cod_usuario, ue.cod_empresa, ue.cod_rol, COALESCE(r.nombre, ue.rol_en_empresa) AS rol,
+                       e.razon_social, e.ruc, e.activo
                 FROM dbasset.usuario_empresa ue
                 JOIN dbasset.empresa e ON e.cod_empresa = ue.cod_empresa
+                LEFT JOIN dbasset.rol r ON r.cod_rol = ue.cod_rol
                 WHERE ue.activo = TRUE
                 ORDER BY e.razon_social
                 """, rs -> {
             Map<String, Object> a = new LinkedHashMap<>();
             a.put("codEmpresa", rs.getInt(2));
-            a.put("rol", rs.getString(3));
-            a.put("razonSocial", rs.getString(4));
-            a.put("ruc", rs.getString(5));
-            a.put("empresaActiva", rs.getBoolean(6));
+            a.put("codRol", rs.getObject(3));
+            a.put("rol", rs.getString(4));
+            a.put("razonSocial", rs.getString(5));
+            a.put("ruc", rs.getString(6));
+            a.put("empresaActiva", rs.getBoolean(7));
             asignaciones.computeIfAbsent(rs.getInt(1), k -> new ArrayList<>()).add(a);
         });
         List<Map<String, Object>> res = new ArrayList<>();
@@ -171,14 +182,14 @@ public class SuperAdminService {
             if (a.codEmpresa() == null || !empresaRepository.existsById(a.codEmpresa())) {
                 throw RfidException.invalido("Empresa inválida: " + a.codEmpresa());
             }
-            String rol = a.rol() == null ? "ADMIN" : a.rol().trim().toUpperCase(Locale.ROOT);
-            if (!ROLES.contains(rol)) throw RfidException.invalido("Rol inválido: " + a.rol() + " (use ADMIN o AUDITOR)");
+            Rol rol = resolverRol(a.codRol(), a.rol());
             if (!codigos.add(a.codEmpresa())) continue;
             jdbc.update("""
-                    INSERT INTO dbasset.usuario_empresa (cod_usuario, cod_empresa, rol_en_empresa, activo)
-                    VALUES (?, ?, ?, TRUE)
-                    ON CONFLICT (cod_usuario, cod_empresa) DO UPDATE SET rol_en_empresa = EXCLUDED.rol_en_empresa, activo = TRUE
-                    """, idUsuario, a.codEmpresa(), rol);
+                    INSERT INTO dbasset.usuario_empresa (cod_usuario, cod_empresa, cod_rol, rol_en_empresa, activo)
+                    VALUES (?, ?, ?, ?, TRUE)
+                    ON CONFLICT (cod_usuario, cod_empresa) DO UPDATE
+                        SET cod_rol = EXCLUDED.cod_rol, rol_en_empresa = EXCLUDED.rol_en_empresa, activo = TRUE
+                    """, idUsuario, a.codEmpresa(), rol.getCodRol(), rol.getNombre());
         }
         if (codigos.isEmpty()) {
             jdbc.update("DELETE FROM dbasset.usuario_empresa WHERE cod_usuario = ?", idUsuario);
@@ -195,6 +206,128 @@ public class SuperAdminService {
                     List<Map<String, Object>> e = (List<Map<String, Object>>) m.get("empresas");
                     return e;
                 }).orElse(List.of());
+    }
+
+    // ------------------------------------------------------------------ usuarios de una empresa
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listarUsuariosEmpresa(Integer codEmpresa) {
+        if (!empresaRepository.existsById(codEmpresa)) throw RfidException.noEncontrado("Empresa no encontrada");
+        List<Map<String, Object>> res = new ArrayList<>();
+        jdbc.query("""
+                SELECT u.cod_usuario, u.nombre_usuario, u.nombre_completo, u.descripcion,
+                       COALESCE(u.activo, TRUE) AS usuario_activo, ue.activo AS asignacion_activa,
+                       ue.cod_rol, COALESCE(r.nombre, ue.rol_en_empresa) AS rol
+                FROM dbasset.usuario_empresa ue
+                JOIN dbasset.usuario u ON u.cod_usuario = ue.cod_usuario
+                LEFT JOIN dbasset.rol r ON r.cod_rol = ue.cod_rol
+                WHERE ue.cod_empresa = ?
+                ORDER BY u.nombre_completo, u.nombre_usuario
+                """, rs -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("codUsuario", rs.getInt(1));
+            m.put("nombreUsuario", rs.getString(2));
+            m.put("nombreCompleto", rs.getString(3));
+            m.put("descripcion", rs.getString(4));
+            m.put("usuarioActivo", rs.getBoolean(5));
+            m.put("activo", rs.getBoolean(6));
+            m.put("codRol", rs.getObject(7));
+            m.put("rol", rs.getString(8));
+            res.add(m);
+        }, codEmpresa);
+        return res;
+    }
+
+    /** Usuarios activos que todavía no están asignados a la empresa (para el botón "Asignar existente"). */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> usuariosDisponibles(Integer codEmpresa) {
+        if (!empresaRepository.existsById(codEmpresa)) throw RfidException.noEncontrado("Empresa no encontrada");
+        List<Map<String, Object>> res = new ArrayList<>();
+        jdbc.query("""
+                SELECT u.cod_usuario, u.nombre_usuario, u.nombre_completo
+                FROM dbasset.usuario u
+                WHERE COALESCE(u.es_superadmin, FALSE) = FALSE
+                  AND COALESCE(u.activo, TRUE) = TRUE
+                  AND NOT EXISTS (SELECT 1 FROM dbasset.usuario_empresa ue
+                                  WHERE ue.cod_usuario = u.cod_usuario AND ue.cod_empresa = ?)
+                ORDER BY u.nombre_completo, u.nombre_usuario
+                """, rs -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("codUsuario", rs.getInt(1));
+            m.put("nombreUsuario", rs.getString(2));
+            m.put("nombreCompleto", rs.getString(3));
+            res.add(m);
+        }, codEmpresa);
+        return res;
+    }
+
+    @Transactional
+    public List<Map<String, Object>> asignarUsuarioEmpresa(Integer codEmpresa, AsignacionRequest req) {
+        if (req == null || req.codUsuario() == null) throw RfidException.invalido("Seleccione un usuario");
+        if (!empresaRepository.existsById(codEmpresa)) throw RfidException.noEncontrado("Empresa no encontrada");
+        Usuario u = usuarioRepository.findById(req.codUsuario())
+                .orElseThrow(() -> RfidException.noEncontrado("Usuario no encontrado"));
+        if (Boolean.TRUE.equals(u.getEsSuperadmin())) {
+            throw RfidException.invalido("El superadministrador no se asigna a empresas");
+        }
+        Rol rol = resolverRol(req.codRol(), null);
+        guardarAsignacion(codEmpresa, req.codUsuario(), rol, req.activo() == null || req.activo());
+        return listarUsuariosEmpresa(codEmpresa);
+    }
+
+    @Transactional
+    public List<Map<String, Object>> actualizarUsuarioEmpresa(Integer codEmpresa, Integer codUsuario, AsignacionRequest req) {
+        if (!empresaRepository.existsById(codEmpresa)) throw RfidException.noEncontrado("Empresa no encontrada");
+        usuarioRepository.findById(codUsuario).orElseThrow(() -> RfidException.noEncontrado("Usuario no encontrado"));
+        Rol rol = resolverRol(req != null ? req.codRol() : null, null);
+        boolean activo = req == null || req.activo() == null || req.activo();
+        guardarAsignacion(codEmpresa, codUsuario, rol, activo);
+        return listarUsuariosEmpresa(codEmpresa);
+    }
+
+    @Transactional
+    public void quitarUsuarioEmpresa(Integer codEmpresa, Integer codUsuario) {
+        int borrados = jdbc.update("DELETE FROM dbasset.usuario_empresa WHERE cod_empresa = ? AND cod_usuario = ?",
+                codEmpresa, codUsuario);
+        if (borrados == 0) throw RfidException.noEncontrado("El usuario no está asignado a esta empresa");
+    }
+
+    /** Crea el usuario y lo asigna a la empresa con el rol indicado en una sola operación. */
+    @Transactional
+    public Map<String, Object> crearUsuarioEmpresa(Integer codEmpresa, UsuarioEmpresaRequest req) {
+        if (req == null || req.usuario() == null) throw RfidException.invalido("Indique los datos del usuario");
+        if (!empresaRepository.existsById(codEmpresa)) throw RfidException.noEncontrado("Empresa no encontrada");
+        Rol rol = resolverRol(req.codRol(), null);
+        Usuario nuevo = crearUsuario(req.usuario());
+        guardarAsignacion(codEmpresa, nuevo.getCodUsuario(), rol, true);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("codUsuario", nuevo.getCodUsuario());
+        m.put("nombreUsuario", nuevo.getNombreUsuario());
+        m.put("nombreCompleto", nuevo.getNombreCompleto());
+        m.put("codRol", rol.getCodRol());
+        m.put("rol", rol.getNombre());
+        return m;
+    }
+
+    private void guardarAsignacion(Integer codEmpresa, Integer codUsuario, Rol rol, boolean activo) {
+        jdbc.update("""
+                INSERT INTO dbasset.usuario_empresa (cod_usuario, cod_empresa, cod_rol, rol_en_empresa, activo)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (cod_usuario, cod_empresa) DO UPDATE
+                    SET cod_rol = EXCLUDED.cod_rol, rol_en_empresa = EXCLUDED.rol_en_empresa, activo = EXCLUDED.activo
+                """, codUsuario, codEmpresa, rol.getCodRol(), rol.getNombre(), activo);
+    }
+
+    private Rol resolverRol(Integer codRol, String nombre) {
+        if (codRol != null) {
+            Rol r = rolRepository.findById(codRol)
+                    .orElseThrow(() -> RfidException.invalido("Rol inválido: " + codRol));
+            if (Boolean.FALSE.equals(r.getActivo())) throw RfidException.invalido("El rol " + r.getNombre() + " está inactivo");
+            return r;
+        }
+        String n = nombre == null || nombre.isBlank() ? "ADMIN" : nombre.trim();
+        return rolRepository.findByNombreIgnoreCase(n)
+                .orElseThrow(() -> RfidException.invalido("Rol inválido: " + nombre));
     }
 
     // ------------------------------------------------------------------ util
