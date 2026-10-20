@@ -13,7 +13,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -84,6 +86,40 @@ public class AuthController {
             // Imprimimos el error en consola para depuración
             System.err.println("Error en login: " + e.getMessage());
             return ResponseEntity.status(401).body(Map.of("error", "Credenciales incorrectas o usuario no activo"));
+        }
+    }
+
+    /**
+     * Permisos vigentes del usuario en la empresa indicada. El frontend lo usa para refrescar
+     * el menú cuando el superadministrador cambia los permisos del rol, sin obligar a re-loguear.
+     */
+    @GetMapping("/permisos")
+    public ResponseEntity<?> permisos(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                      @RequestHeader(value = "X-Tenant-ID", required = false) Integer codEmpresa) {
+        if (authorization == null || !authorization.regionMatches(true, 0, "Basic ", 0, 6) || codEmpresa == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Sesión no válida"));
+        }
+        try {
+            String decodificado = new String(Base64.getDecoder().decode(authorization.substring(6).trim()), StandardCharsets.UTF_8);
+            int dosPuntos = decodificado.indexOf(':');
+            if (dosPuntos < 0) throw new IllegalArgumentException();
+            String usuario = decodificado.substring(0, dosPuntos);
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                    usuario, decodificado.substring(dosPuntos + 1)));
+            Usuario u = usuarioRepository.findByNombreUsuario(usuario).orElseThrow();
+            Optional<EmpresaResumen> empresa = usuarioRepository.findEmpresasByUsuario(u.getCodUsuario()).stream()
+                    .filter(e -> codEmpresa.equals(e.getCodEmpresa())).findFirst();
+            if (empresa.isEmpty()) {
+                return ResponseEntity.status(403).body(Map.of("error", "El usuario no pertenece a esta empresa"));
+            }
+            Map<String, Object> res = new LinkedHashMap<>();
+            res.put("codEmpresa", empresa.get().getCodEmpresa());
+            res.put("codRol", empresa.get().getCodRol());
+            res.put("rol", empresa.get().getRol());
+            res.put("permisos", rolPermisoService.permisosDeUsuario(u.getCodUsuario(), codEmpresa));
+            return ResponseEntity.ok(res);
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body(Map.of("error", "Credenciales inválidas o usuario inactivo"));
         }
     }
 
