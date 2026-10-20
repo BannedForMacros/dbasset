@@ -19,9 +19,11 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
         SELECT e.cod_empresa as codEmpresa, 
                e.ruc as ruc, 
                e.razon_social as razonSocial,
-               ue.rol_en_empresa as rol
+               ue.cod_rol as codRol,
+               COALESCE(r.nombre, ue.rol_en_empresa) as rol
         FROM dbasset.empresa e
         INNER JOIN dbasset.usuario_empresa ue ON e.cod_empresa = ue.cod_empresa
+        LEFT JOIN dbasset.rol r ON r.cod_rol = ue.cod_rol
         WHERE ue.cod_usuario = :codUsuario 
           AND ue.activo = true 
           AND e.activo = true
