@@ -48,15 +48,10 @@ CREATE TABLE IF NOT EXISTS dbasset.rol_permiso (
 ALTER TABLE dbasset.usuario_empresa
     ADD COLUMN IF NOT EXISTS cod_rol INTEGER;
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_ue_rol'
-    ) THEN
-        ALTER TABLE dbasset.usuario_empresa
-            ADD CONSTRAINT fk_ue_rol FOREIGN KEY (cod_rol) REFERENCES dbasset.rol (cod_rol);
-    END IF;
-END $$;
+-- FK idempotente sin bloques PL/pgSQL (el inicializador de Spring corta por ";")
+ALTER TABLE dbasset.usuario_empresa DROP CONSTRAINT IF EXISTS fk_ue_rol;
+ALTER TABLE dbasset.usuario_empresa
+    ADD CONSTRAINT fk_ue_rol FOREIGN KEY (cod_rol) REFERENCES dbasset.rol (cod_rol);
 
 -- ---------------------------------------------------------------------
 --  Permisos del sistema (módulo + acción)
